@@ -551,6 +551,28 @@
   background: #ef444415;
 }
 
+.diff-toggle {
+  font-size: 10px;
+}
+
+.diff-toggle .toggle-option {
+  padding: 4px 8px;
+  font-size: 10px;
+}
+
+.diff-easy-opt.active {
+  background: #22c55e;
+}
+
+.diff-normal-opt.active {
+  background: #eab308;
+  color: #000;
+}
+
+.diff-hard-opt.active {
+  background: #ef4444;
+}
+
 /* 확인 모달 */
 .confirm-overlay {
   position: fixed;

@@ -1,5 +1,6 @@
-import type { Planet } from './types'
+import type { Planet, GameMode } from './types'
 import { GRID_SIZE } from './types'
+import { generateRandomBoard } from './board'
 import { fireLaser } from './laser'
 import { isPassthrough } from './helpers'
 
@@ -167,4 +168,41 @@ export function analyzeDifficulty(planets: Planet[]): DifficultyResult {
       colorVariety,
     },
   }
+}
+
+/**
+ * 지정 난이도에 맞는 보드 생성
+ * 최대 50번 시도 후 가장 가까운 결과 반환
+ */
+export function generateBoardWithDifficulty(
+  mode: GameMode,
+  targetLevel: DifficultyLevel | 'any'
+): { planets: Planet[]; difficulty: DifficultyResult } {
+  if (targetLevel === 'any') {
+    const planets = generateRandomBoard(mode)
+    return { planets, difficulty: analyzeDifficulty(planets) }
+  }
+
+  let bestPlanets = generateRandomBoard(mode)
+  let bestDiff = analyzeDifficulty(bestPlanets)
+
+  if (bestDiff.level === targetLevel) return { planets: bestPlanets, difficulty: bestDiff }
+
+  for (let i = 0; i < 50; i++) {
+    const planets = generateRandomBoard(mode)
+    const diff = analyzeDifficulty(planets)
+    if (diff.level === targetLevel) {
+      return { planets, difficulty: diff }
+    }
+    // 가장 가까운 점수 저장
+    const targetCenter = targetLevel === 'easy' ? 1.75 : targetLevel === 'normal' ? 5 : 8.25
+    const bestDist = Math.abs(bestDiff.score - targetCenter)
+    const curDist = Math.abs(diff.score - targetCenter)
+    if (curDist < bestDist) {
+      bestPlanets = planets
+      bestDiff = diff
+    }
+  }
+
+  return { planets: bestPlanets, difficulty: bestDiff }
 }

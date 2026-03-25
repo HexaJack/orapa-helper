@@ -7,8 +7,8 @@ import type { LaserResult, LaserColor } from '../game/laser'
 import { fireLaser } from '../game/laser'
 import { saveGameRecord, generateId } from '../game/storage'
 import { isPassthrough, getPassthroughCells } from '../game/helpers'
-import type { DifficultyResult } from '../game/difficulty'
-import { analyzeDifficulty } from '../game/difficulty'
+import type { DifficultyResult, DifficultyLevel } from '../game/difficulty'
+import { analyzeDifficulty, generateBoardWithDifficulty } from '../game/difficulty'
 import PlanetOverlay from './PlanetOverlay'
 
 const TOP_LABELS = Array.from({ length: GRID_SIZE }, (_, i) => String(i + 1))
@@ -56,6 +56,7 @@ function getAvailablePieces(mode: GameMode): PlanetDef[] {
 export default function Board() {
   // 게임 상태
   const [gameMode, setGameMode] = useState<GameMode>('basic')
+  const [targetDifficulty, setTargetDifficulty] = useState<DifficultyLevel | 'any'>('any')
   const [planets, setPlanets] = useState(() => generateRandomBoard('basic'))
   const [difficulty, setDifficulty] = useState<DifficultyResult | null>(null)
   const [showPlanets, setShowPlanets] = useState(false)
@@ -147,7 +148,9 @@ export default function Board() {
   // 새 게임
   const startNewGame = useCallback((mode: GameMode) => {
     setGameMode(mode)
-    setPlanets(generateRandomBoard(mode))
+    const { planets: newPlanets, difficulty: newDiff } = generateBoardWithDifficulty(mode, targetDifficulty)
+    setPlanets(newPlanets)
+    setDifficulty(newDiff)
     setLastResult(null)
     setLaserPath(new Set())
     setHistory([])
@@ -161,7 +164,7 @@ export default function Board() {
     setPlacingMode(false)
     setPlacedPlanets([])
     setSelectedPiece(null)
-  }, [])
+  }, [targetDifficulty])
 
   const handleNewGameRequest = useCallback(() => {
     if (history.length > 0 && !gameFinished) {
@@ -437,10 +440,19 @@ export default function Board() {
           <div className={`toggle-option${gameMode === 'basic' ? ' active' : ''}`}>기본</div>
           <div className={`toggle-option${gameMode === 'blackhole' ? ' active' : ''}`}>블랙홀</div>
         </div>
+        <div className="mode-toggle diff-toggle" onClick={() => {
+          const cycle: (DifficultyLevel | 'any')[] = ['any', 'easy', 'normal', 'hard']
+          const idx = cycle.indexOf(targetDifficulty)
+          setTargetDifficulty(cycle[(idx + 1) % cycle.length])
+        }}>
+          <div className={`toggle-option${targetDifficulty === 'any' ? ' active' : ''}`}>전체</div>
+          <div className={`toggle-option diff-easy-opt${targetDifficulty === 'easy' ? ' active' : ''}`}>쉬움</div>
+          <div className={`toggle-option diff-normal-opt${targetDifficulty === 'normal' ? ' active' : ''}`}>보통</div>
+          <div className={`toggle-option diff-hard-opt${targetDifficulty === 'hard' ? ' active' : ''}`}>어려움</div>
+        </div>
         {difficulty && (
           <span className={`difficulty-badge diff-${difficulty.level}`}>
-            {difficulty.level === 'easy' ? '쉬움' : difficulty.level === 'normal' ? '보통' : '어려움'}
-            <span className="diff-score">{difficulty.score}</span>
+            {difficulty.score}
           </span>
         )}
         <button className="btn btn-new-sm" onClick={handleNewGameRequest}>새 게임</button>
