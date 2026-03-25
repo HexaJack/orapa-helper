@@ -1,0 +1,61 @@
+.color-table {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 1rem;
+  min-width: 260px;
+}
+
+.color-table h2 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+}
+
+.color-table h3 {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+  margin-top: 0.6rem;
+}
+
+.color-table h3:first-of-type {
+  margin-top: 0;
+}
+
+.color-combo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.color-combo {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 12px;
+  color: var(--text);
+  padding: 2px 0;
+}
+
+.color-combo .combo-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid #555;
+  flex-shrink: 0;
+}
+
+.color-combo .combo-plus,
+.color-combo .combo-eq {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.color-combo .combo-name {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-left: 0.2rem;
+}
