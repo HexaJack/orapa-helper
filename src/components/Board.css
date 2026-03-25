@@ -50,6 +50,7 @@
 
 .cell.cell-placeable {
   cursor: pointer;
+  touch-action: none;
 }
 
 .cell.cell-placeable:hover {

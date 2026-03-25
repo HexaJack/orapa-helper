@@ -529,6 +529,7 @@ export default function Board() {
             style={{
               gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
               gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
+              ...(placingMode ? { touchAction: 'none' } : {}),
             }}
             onMouseDown={onGridMouseDown}
             onMouseMove={onGridMouseMove}
