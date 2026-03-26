@@ -15,6 +15,7 @@ export interface DifficultyResult {
     avgPathLength: number   // 평균 레이저 경로 길이
     planetSpread: number    // 행성 분산도 (0~1)
     colorVariety: number    // 색상 변화 다양성
+    infoRedundancy: number  // 정보 중복도 (0~1, 높을수록 중복 많음)
   }
 }
 
@@ -98,6 +99,7 @@ export function analyzeDifficulty(planets: Planet[]): DifficultyResult {
   let totalPathLength = 0
   const colorSet = new Set<string>()
   let validShots = 0
+  const signatures = new Map<string, number>() // "탈출점:색상" → 횟수
 
   for (const label of ALL_LABELS) {
     const result = fireLaser(label, planets)
@@ -127,11 +129,19 @@ export function analyzeDifficulty(planets: Planet[]): DifficultyResult {
     if (result.color !== 'transparent') {
       colorSet.add(result.color)
     }
+
+    // 결과 시그니처 (탈출점+색상)
+    const sig = `${result.exitPoint}:${result.color}`
+    signatures.set(sig, (signatures.get(sig) || 0) + 1)
   }
 
   const avgPathLength = validShots > 0 ? totalPathLength / validShots : 0
   const planetSpread = calcSpread(planets)
   const colorVariety = colorSet.size
+
+  // 정보 유일성: 고유 시그니처 비율 (높을수록 각 발사가 고유한 정보 → 쉬움)
+  const uniqueSignatures = signatures.size
+  const uniqueRatio = uniqueSignatures / ALL_LABELS.length // 0~1
 
   // 점수 계산 (0~10)
   const totalLabels = ALL_LABELS.length // 36
@@ -140,20 +150,35 @@ export function analyzeDifficulty(planets: Planet[]): DifficultyResult {
 
   let score = 5
 
-  // 빈 라인 비율 (0~36) → 많으면 쉬움
-  score -= emptyRatio * 6
+  // 빈 라인 비율 → 많으면 쉬움
+  score -= emptyRatio * 5
 
   // 인접 탈출 비율 → 많으면 쉬움
-  score -= nearRatio * 4
+  score -= nearRatio * 3
 
-  // 평균 경로 길이 → 길면 어려움 (보통 2~8)
-  score += (avgPathLength - 3) * 0.4
+  // 평균 경로 길이 → 길면 어려움
+  score += (avgPathLength - 3) * 0.3
 
   // 분산 낮으면(밀집) → 어려움
-  score += (1 - planetSpread) * 2.5
+  score += (1 - planetSpread) * 2
 
-  // 색상 다양성 → 많으면 조합 추론 복잡 → 어려움
-  score += (colorVariety - 3) * 0.3
+  // 정보 중복도 → 유일 비율 높으면 쉬움, 낮으면 어려움
+  // uniqueRatio 1.0 = 모든 발사 결과 고유 (쉬움), 0.5 = 절반 중복 (어려움)
+  score -= (uniqueRatio - 0.5) * 3
+
+  // 색상 다양성
+  const threeColorMixes = new Set(['light-orange', 'light-purple', 'light-green', 'black', 'gray'])
+  let threeColorCount = 0
+  for (const c of colorSet) {
+    if (threeColorMixes.has(c)) threeColorCount++
+  }
+  const twoColorMixes = new Set(['orange', 'purple', 'green', 'pink', 'lemon', 'skyblue'])
+  let twoColorCount = 0
+  for (const c of colorSet) {
+    if (twoColorMixes.has(c)) twoColorCount++
+  }
+  score += Math.min(twoColorCount, 3) * 0.1
+  score += threeColorCount * 0.5
 
   // 범위 제한
   score = Math.max(0, Math.min(10, score))
@@ -170,6 +195,7 @@ export function analyzeDifficulty(planets: Planet[]): DifficultyResult {
       avgPathLength: Math.round(avgPathLength * 10) / 10,
       planetSpread: Math.round(planetSpread * 100) / 100,
       colorVariety,
+      infoRedundancy: Math.round((1 - uniqueRatio) * 100) / 100,
     },
   }
 }

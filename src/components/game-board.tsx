@@ -253,7 +253,7 @@ export default function GameBoard() {
             style={{
               gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
               gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
-              ...(game.isPlacing ? { touchAction: 'none' } : {}),
+              ...(draggingIdx !== null ? { touchAction: 'none' } : game.isPlacing ? { touchAction: 'pan-y' } : {}),
             }}
             onMouseDown={onGridMouseDown} onMouseMove={onGridMouseMove}
             onMouseUp={onGridMouseUp} onMouseLeave={onGridMouseUp}
