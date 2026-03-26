@@ -134,28 +134,32 @@ export function analyzeDifficulty(planets: Planet[]): DifficultyResult {
   const colorVariety = colorSet.size
 
   // 점수 계산 (0~10)
-  let score = 5 // 기본
+  const totalLabels = ALL_LABELS.length // 36
+  const emptyRatio = emptyLines / totalLabels
+  const nearRatio = validShots > 0 ? nearReflections / validShots : 0
 
-  // 빈 라인 많으면 쉬움 (-0.3점/라인)
-  score -= emptyLines * 0.3
+  let score = 5
 
-  // 인접 탈출 많으면 쉬움 (-0.2점/회)
-  score -= nearReflections * 0.2
+  // 빈 라인 비율 (0~36) → 많으면 쉬움
+  score -= emptyRatio * 6
 
-  // 평균 경로 길면 어려움
-  score += (avgPathLength - 3) * 0.15
+  // 인접 탈출 비율 → 많으면 쉬움
+  score -= nearRatio * 4
 
-  // 분산 낮으면(밀집) 어려움
-  score += (1 - planetSpread) * 1.5
+  // 평균 경로 길이 → 길면 어려움 (보통 2~8)
+  score += (avgPathLength - 3) * 0.4
 
-  // 색상 다양하면 약간 쉬움
-  score -= (colorVariety - 3) * 0.1
+  // 분산 낮으면(밀집) → 어려움
+  score += (1 - planetSpread) * 2.5
+
+  // 색상 다양성 → 많으면 약간 쉬움
+  score -= (colorVariety - 3) * 0.15
 
   // 범위 제한
   score = Math.max(0, Math.min(10, score))
 
   const level: DifficultyLevel =
-    score <= 3.5 ? 'easy' : score <= 6.5 ? 'normal' : 'hard'
+    score <= 3 ? 'easy' : score <= 6 ? 'normal' : 'hard'
 
   return {
     level,

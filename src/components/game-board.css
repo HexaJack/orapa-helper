@@ -89,8 +89,20 @@
   opacity: 0.3;
 }
 
-.piece-btn:disabled {
-  cursor: not-allowed;
+.piece-btn.placed {
+  border-color: #22c55e;
+  opacity: 0.7;
+}
+
+.piece-btn.placed .piece-count {
+  color: #22c55e;
+}
+
+.piece-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .piece-color {

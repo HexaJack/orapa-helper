@@ -1,13 +1,13 @@
 import './App.css'
-import Board from './components/Board'
-import ColorTable from './components/ColorTable'
+import GameBoard from './components/game-board'
+import ColorTable from './components/color-table'
 
 function App() {
   return (
     <div className="app">
       <h1>Orapa Space</h1>
       <div className="app-layout">
-        <Board />
+        <GameBoard />
         <ColorTable />
       </div>
     </div>

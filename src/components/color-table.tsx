@@ -1,4 +1,4 @@
-import './ColorTable.css'
+import './color-table.css'
 
 interface ComboEntry {
   inputs: { color: string; label: string }[]

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 160">
+  <!-- 토성 세로: 중앙 다이아몬드 + 상하 막대 -->
+  <!-- 위쪽 반 (막대 + 다이아몬드 위) -->
+  <path d="M 30,4 L 50,4 L 50,80 L 76,80 L 40,40 L 4,80 L 30,80 Z" fill="#d4d4d4" stroke="#aaa" stroke-width="1"/>
+  <!-- 아래쪽 반 (막대 + 다이아몬드 아래) -->
+  <path d="M 30,156 L 50,156 L 50,80 L 76,80 L 40,120 L 4,80 L 30,80 Z" fill="#d4d4d4" stroke="#aaa" stroke-width="1"/>
+  <!-- 중심선 -->
+  <line x1="40" y1="40" x2="40" y2="120" stroke="#aaa" stroke-width="0.8"/>
+  <line x1="4" y1="80" x2="76" y2="80" stroke="#aaa" stroke-width="0.8"/>
+</svg>

@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 160">
+  <!-- 세로, 직선이 오른쪽 (곡면 왼쪽) -->
+  <polygon points="37,4 76,4 76,156 37,156 4,123 4,37" fill="#e8e8e8" stroke="#bbb" stroke-width="1"/>
+</svg>
