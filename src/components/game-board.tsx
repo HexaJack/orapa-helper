@@ -198,21 +198,25 @@ export default function GameBoard() {
   return (
     <div className="board-container">
       <div className="top-bar">
-        <div className="mode-toggle" onClick={game.handleToggleMode}>
-          <div className={`toggle-option${game.gameMode === 'basic' ? ' active' : ''}`}>기본</div>
-          <div className={`toggle-option${game.gameMode === 'blackhole' ? ' active' : ''}`}>블랙홀</div>
+        <div className="top-row">
+          <div className="mode-toggle" onClick={game.handleToggleMode}>
+            <div className={`toggle-option${game.gameMode === 'basic' ? ' active' : ''}`}>기본</div>
+            <div className={`toggle-option${game.gameMode === 'blackhole' ? ' active' : ''}`}>블랙홀</div>
+          </div>
+          <button className="btn btn-new-sm" onClick={game.handleNewGameRequest}>새 게임</button>
         </div>
-        <div className="mode-toggle diff-toggle">
-          {(['any', 'easy', 'normal', 'hard'] as const).map(d => (
-            <div key={d}
-              className={`toggle-option${d !== 'any' ? ` diff-${d}-opt` : ''}${game.targetDifficulty === d ? ' active' : ''}`}
-              onClick={() => game.setTargetDifficulty(d as DifficultyLevel | 'any')}>
-              {{ any: '전체', easy: '쉬움', normal: '보통', hard: '어려움' }[d]}
-            </div>
-          ))}
+        <div className="diff-row">
+          <div className="mode-toggle diff-toggle">
+            {(['any', 'easy', 'normal', 'hard'] as const).map(d => (
+              <div key={d}
+                className={`toggle-option${d !== 'any' ? ` diff-${d}-opt` : ''}${game.targetDifficulty === d ? ' active' : ''}`}
+                onClick={() => game.setTargetDifficulty(d as DifficultyLevel | 'any')}>
+                {{ any: '전체', easy: '쉬움', normal: '보통', hard: '어려움' }[d]}
+              </div>
+            ))}
+          </div>
+          {game.difficulty && <span className={`difficulty-badge diff-${game.difficulty.level}`}>{game.difficulty.score}</span>}
         </div>
-        {game.difficulty && <span className={`difficulty-badge diff-${game.difficulty.level}`}>{game.difficulty.score}</span>}
-        <button className="btn btn-new-sm" onClick={game.handleNewGameRequest}>새 게임</button>
       </div>
 
       {game.showRevealConfirm && (
@@ -337,6 +341,9 @@ export default function GameBoard() {
                 {game.showPlanets ? '숨기기' : '정답 보기'}
               </button>
               <button className="btn btn-finish" onClick={game.handleSubmitAnswer} disabled={!game.allPlaced}>정답 확인</button>
+              {game.placedPlanets.length > 0 && (
+                <button className="btn" onClick={game.resetPlacedPlanets}>초기화</button>
+              )}
               <button className="btn btn-fail" disabled={game.history.length === 0}
                 onClick={() => game.setShowFinishForm('fail')}>포기</button>
             </>
@@ -346,6 +353,9 @@ export default function GameBoard() {
             <>
               <button className="btn" onClick={() => game.setPlacingMode(false)}>돌아가기</button>
               <button className="btn btn-finish" onClick={game.handleSubmitAnswer} disabled={!game.allPlaced}>정답 확인</button>
+              {game.placedPlanets.length > 0 && (
+                <button className="btn" onClick={game.resetPlacedPlanets}>초기화</button>
+              )}
             </>
           )}
         </div>

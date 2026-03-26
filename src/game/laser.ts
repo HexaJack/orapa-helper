@@ -146,8 +146,8 @@ function reflect(
       return reflectOctagon3x3(pr, pc, direction)
 
     case 'large-white':
-      // 4x2 팔각형 반: 보드 가장자리 쪽 두 귀퉁이만 직각 반사
-      return reflectHalfOctagon(pr, pc, direction, orientation)
+      // 4x2 팔각형 반: 곡면 쪽 두 귀퉁이만 직각 반사
+      return reflectHalfOctagon(pr, pc, direction, orientation, planet.edgeSide)
 
     case 'white-ring':
       // 4x2 고리형
@@ -294,59 +294,71 @@ function reflectHalfOctagon(
   pr: number,
   pc: number,
   direction: Direction,
-  orientation: 'horizontal' | 'vertical'
+  orientation: 'horizontal' | 'vertical',
+  edgeSide?: 'top' | 'bottom' | 'left' | 'right'
 ): Direction | 'absorb' | 'pass' {
   if (orientation === 'horizontal') {
-    // 4열 x 2행, 직선이 상단 또는 하단
-    // 곡면 쪽(직선 반대쪽)의 양 끝 귀퉁이만 직각 반사
-    // 직선 쪽은 정면 반사, 나머지는 정면 반사
-    // 귀퉁이 판별: 곡면쪽 양 끝
-    // 보드 가장자리에 row=0이 접하면 곡면은 row=1 → (1,0), (1,3)이 귀퉁이
-    // 보드 가장자리에 row=1이 접하면 곡면은 row=0 → (0,0), (0,3)이 귀퉁이
-    // 여기서는 배치 시 이미 검증했으므로, 양쪽 모두 처리
-    // (1,0): \ 거울 → right→down, up→left
-    if (pr === 1 && pc === 0) {
-      if (direction === 'right') return 'down'
-      if (direction === 'up') return 'left'
+    // 4열 x 2행
+    // 곡면 쪽 양 끝 귀퉁이만 직각 반사, 직선(평면) 쪽은 정면 반사
+    // edgeSide='top' → 직선이 row=0, 곡면이 row=1 → (1,0), (1,3)만 귀퉁이
+    // edgeSide='bottom' → 직선이 row=1, 곡면이 row=0 → (0,0), (0,3)만 귀퉁이
+    const curvedRow = edgeSide === 'top' ? 1 : 0
+
+    if (pr === curvedRow && pc === 0) {
+      // 곡면 왼쪽 귀퉁이
+      if (curvedRow === 1) {
+        // \ 거울 → right→down, up→left
+        if (direction === 'right') return 'down'
+        if (direction === 'up') return 'left'
+      } else {
+        // / 거울 → right→up, down→left
+        if (direction === 'right') return 'up'
+        if (direction === 'down') return 'left'
+      }
     }
-    // (1,3): / 거울 → left→down, up→right
-    if (pr === 1 && pc === 3) {
-      if (direction === 'left') return 'down'
-      if (direction === 'up') return 'right'
-    }
-    // (0,0): / 거울 → right→up, down→left
-    if (pr === 0 && pc === 0) {
-      if (direction === 'right') return 'up'
-      if (direction === 'down') return 'left'
-    }
-    // (0,3): \ 거울 → left→up, down→right
-    if (pr === 0 && pc === 3) {
-      if (direction === 'left') return 'up'
-      if (direction === 'down') return 'right'
+    if (pr === curvedRow && pc === 3) {
+      // 곡면 오른쪽 귀퉁이
+      if (curvedRow === 1) {
+        // / 거울 → left→down, up→right
+        if (direction === 'left') return 'down'
+        if (direction === 'up') return 'right'
+      } else {
+        // \ 거울 → left→up, down→right
+        if (direction === 'left') return 'up'
+        if (direction === 'down') return 'right'
+      }
     }
 
     return reverseDirection(direction)
   } else {
     // vertical: 2열 x 4행
-    // (0,1): \ 거울 → down→right, left→up
-    if (pc === 1 && pr === 0) {
-      if (direction === 'down') return 'right'
-      if (direction === 'left') return 'up'
+    // edgeSide='left' → 직선이 col=0, 곡면이 col=1 → (0,1), (3,1)만 귀퉁이
+    // edgeSide='right' → 직선이 col=1, 곡면이 col=0 → (0,0), (3,0)만 귀퉁이
+    const curvedCol = edgeSide === 'left' ? 1 : 0
+
+    if (pr === 0 && pc === curvedCol) {
+      // 곡면 위쪽 귀퉁이
+      if (curvedCol === 1) {
+        // \ 거울 → down→right, left→up
+        if (direction === 'down') return 'right'
+        if (direction === 'left') return 'up'
+      } else {
+        // / 거울 → right→up, down→left
+        if (direction === 'right') return 'up'
+        if (direction === 'down') return 'left'
+      }
     }
-    // (3,1): / 거울 → up→right, left→down
-    if (pc === 1 && pr === 3) {
-      if (direction === 'up') return 'right'
-      if (direction === 'left') return 'down'
-    }
-    // (0,0): / 거울 → right→up, down→left
-    if (pc === 0 && pr === 0) {
-      if (direction === 'right') return 'up'
-      if (direction === 'down') return 'left'
-    }
-    // (3,0): \ 거울 → right→down, up→left
-    if (pc === 0 && pr === 3) {
-      if (direction === 'right') return 'down'
-      if (direction === 'up') return 'left'
+    if (pr === 3 && pc === curvedCol) {
+      // 곡면 아래쪽 귀퉁이
+      if (curvedCol === 1) {
+        // / 거울 → up→right, left→down
+        if (direction === 'up') return 'right'
+        if (direction === 'left') return 'down'
+      } else {
+        // \ 거울 → right→down, up→left
+        if (direction === 'right') return 'down'
+        if (direction === 'up') return 'left'
+      }
     }
 
     return reverseDirection(direction)

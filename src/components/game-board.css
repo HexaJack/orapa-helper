@@ -58,13 +58,48 @@
 }
 
 /* 배치 모드 조각 트레이 */
+.piece-tray-wrapper {
+  max-width: 380px;
+  width: 100%;
+  margin-bottom: 0.25rem;
+}
+
+.piece-tray-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.piece-tray-toggle:hover {
+  border-color: #666;
+}
+
+.chevron {
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+
+.chevron.open {
+  transform: rotate(180deg);
+}
+
 .piece-tray {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
   justify-content: center;
   max-width: 380px;
-  margin-bottom: 0.25rem;
+  padding-top: 0.4rem;
 }
 
 .piece-btn {
@@ -366,11 +401,12 @@
 /* 버튼 */
 .controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
+  justify-content: center;
 }
 
 .btn {
-  flex: 1;
   padding: 0.5rem 1rem;
   border-radius: 6px;
   border: 1px solid #444;
@@ -485,9 +521,26 @@
 /* 상단 바 */
 .top-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: center;
+  gap: 0.5rem;
   margin-bottom: 0.5rem;
+}
+
+.top-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.diff-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  justify-content: center;
 }
 
 .mode-toggle {

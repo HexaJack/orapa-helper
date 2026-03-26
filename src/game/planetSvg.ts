@@ -35,12 +35,12 @@ export function getPlanetSvgPath(
  */
 export function getPlanetName(type: PlanetType): string {
   const names: Record<PlanetType, string> = {
-    'small-red': '소행성 (빨강)',
-    'large-red': '화성 (빨강)',
-    'large-blue': '해왕성 (파랑)',
-    'yellow': '목성 (노랑)',
-    'large-white': '달 (흰색)',
-    'white-ring': '토성 (흰색)',
+    'small-red': '작은 빨간색 행성',
+    'large-red': '큰 빨간색 행성',
+    'large-blue': '파란색 행성',
+    'yellow': '노란색 행성',
+    'large-white': '큰 흰색 행성',
+    'white-ring': '흰색 고리 행성',
     'blackhole': '블랙홀',
   }
   return names[type]

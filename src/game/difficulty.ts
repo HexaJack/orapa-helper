@@ -152,8 +152,8 @@ export function analyzeDifficulty(planets: Planet[]): DifficultyResult {
   // 분산 낮으면(밀집) → 어려움
   score += (1 - planetSpread) * 2.5
 
-  // 색상 다양성 → 많으면 약간 쉬움
-  score -= (colorVariety - 3) * 0.15
+  // 색상 다양성 → 많으면 조합 추론 복잡 → 어려움
+  score += (colorVariety - 3) * 0.3
 
   // 범위 제한
   score = Math.max(0, Math.min(10, score))
@@ -187,22 +187,27 @@ export function generateBoardWithDifficulty(
     return { planets, difficulty: analyzeDifficulty(planets) }
   }
 
+  // 난이도별 최소 점수 보장
+  const minScore = targetLevel === 'easy' ? 0 : targetLevel === 'normal' ? 3 : 6
+  const maxScore = targetLevel === 'easy' ? 3 : targetLevel === 'normal' ? 6 : 10
+
   let bestPlanets = generateRandomBoard(mode)
   let bestDiff = analyzeDifficulty(bestPlanets)
 
-  if (bestDiff.level === targetLevel) return { planets: bestPlanets, difficulty: bestDiff }
+  if (bestDiff.score >= minScore && bestDiff.score <= maxScore) {
+    return { planets: bestPlanets, difficulty: bestDiff }
+  }
 
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 200; i++) {
     const planets = generateRandomBoard(mode)
     const diff = analyzeDifficulty(planets)
-    if (diff.level === targetLevel) {
+    if (diff.score >= minScore && diff.score <= maxScore) {
       return { planets, difficulty: diff }
     }
-    // 가장 가까운 점수 저장
-    const targetCenter = targetLevel === 'easy' ? 1.75 : targetLevel === 'normal' ? 5 : 8.25
-    const bestDist = Math.abs(bestDiff.score - targetCenter)
-    const curDist = Math.abs(diff.score - targetCenter)
-    if (curDist < bestDist) {
+    // 범위에 가장 가까운 점수 저장
+    const bestGap = bestDiff.score < minScore ? minScore - bestDiff.score : bestDiff.score - maxScore
+    const curGap = diff.score < minScore ? minScore - diff.score : diff.score - maxScore
+    if (curGap < bestGap) {
       bestPlanets = planets
       bestDiff = diff
     }

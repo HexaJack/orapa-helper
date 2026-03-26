@@ -4,6 +4,7 @@ import { PLANET_DEFS, BLACKHOLE_DEFS } from '../game/types'
 import type { LaserResult } from '../game/laser'
 import { fireLaser } from '../game/laser'
 import { saveGameRecord, generateId } from '../game/storage'
+import { validatePlacement } from '../game/board'
 import { isPassthrough, getPassthroughCells } from '../game/helpers'
 import type { DifficultyResult, DifficultyLevel } from '../game/difficulty'
 import { analyzeDifficulty, generateBoardWithDifficulty } from '../game/difficulty'
@@ -68,16 +69,18 @@ export function useGame() {
   const handleFire = useCallback((label: string) => {
     if (gameFinished) return
     if (!isSolo && placingMode) return
-    if (firedLabels.has(label)) {
+    const isDuplicate = firedLabels.has(label)
+    const result = fireLaser(label, planets)
+    setLastResult(result)
+    setLaserPath(new Set(result.path.map((s) => `${s.row},${s.col}`)))
+    setSelectedHistoryIdx(null)
+
+    if (isDuplicate) {
       showToast(`${label}은(는) 이미 발사한 지점입니다`)
       return
     }
-    const result = fireLaser(label, planets)
-    setLastResult(result)
     setFiredLabels(new Set(firedLabels).add(label))
-    setLaserPath(new Set(result.path.map((s) => `${s.row},${s.col}`)))
     setHistory([...history, { label, result }])
-    setSelectedHistoryIdx(null)
 
     if (
       result.color === 'transparent' && result.exitPoint &&
@@ -135,13 +138,21 @@ export function useGame() {
   }, [history, selectedHistoryIdx])
 
   const handleSubmitAnswer = useCallback(() => {
+    const error = validatePlacement(placedPlanets)
+    if (error) {
+      showToast(error)
+      return
+    }
     if (comparePlacements(placedPlanets, planets)) {
       setShowFinishForm('success'); setPlacingMode(false); setShowPlanets(true)
     } else {
       showToast('틀렸습니다! 다시 시도하세요.')
-      setPlacedPlanets([]); setSelectedPiece(null)
     }
   }, [placedPlanets, planets, showToast])
+
+  const resetPlacedPlanets = useCallback(() => {
+    setPlacedPlanets([]); setSelectedPiece(null)
+  }, [])
 
   const handleConfirmFinish = useCallback(() => {
     const solved = showFinishForm === 'success'
@@ -184,7 +195,7 @@ export function useGame() {
     // 액션
     handleFire, startNewGame, handleNewGameRequest, handleToggleMode,
     handleHistoryClick, handleSubmitAnswer, handleConfirmFinish,
-    showToast, getEdgeClass,
+    resetPlacedPlanets, showToast, getEdgeClass,
   }
 }
 

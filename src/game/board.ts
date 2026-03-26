@@ -1,5 +1,6 @@
 import type { Planet, PlanetDef, CellState, GameMode } from './types'
 import { GRID_SIZE, PLANET_DEFS, BLACKHOLE_DEFS } from './types'
+import { PIECE_NAMES } from './constants'
 
 const ALL_DEFS = [...PLANET_DEFS, ...BLACKHOLE_DEFS]
 
@@ -22,6 +23,72 @@ function getOccupiedCells(
     }
   }
   return cells
+}
+
+/**
+ * 인접 판정용 "물리적" 셀 반환
+ * - 토성: 고리 부분(양 끝) 제외, 중앙 다이아몬드만
+ * - 대형 흰색: 잘린 모서리 셀 제외 (대각선이라 면 접촉 아님)
+ * - 다이아몬드(빨강/파랑): 전체가 대각선이므로 모서리 셀 제외
+ */
+function getPhysicalCells(
+  row: number,
+  col: number,
+  def: PlanetDef,
+  orientation: 'horizontal' | 'vertical',
+  edgeSide?: 'top' | 'bottom' | 'left' | 'right'
+): [number, number][] {
+  const allCells = getOccupiedCells(row, col, def, orientation)
+
+  if (def.type === 'white-ring') {
+    // 토성: 중앙 2x2만
+    const cells: [number, number][] = []
+    if (orientation === 'horizontal') {
+      for (let r = row; r < row + 2; r++)
+        for (let c = col + 1; c < col + 3; c++) cells.push([r, c])
+    } else {
+      for (let r = row + 1; r < row + 3; r++)
+        for (let c = col; c < col + 2; c++) cells.push([r, c])
+    }
+    return cells
+  }
+
+  if (def.type === 'large-white') {
+    // 반팔각형: 잘린 모서리 2개 제외
+    const cutCorners = new Set<string>()
+    if (orientation === 'horizontal') {
+      // 4x2, 곡면 쪽 양 끝 모서리
+      if (edgeSide === 'top') {
+        // 직선 위, 곡면 아래 → 아래 양 모서리 잘림
+        cutCorners.add(`${row + 1},${col}`)
+        cutCorners.add(`${row + 1},${col + 3}`)
+      } else {
+        // 직선 아래, 곡면 위 → 위 양 모서리 잘림
+        cutCorners.add(`${row},${col}`)
+        cutCorners.add(`${row},${col + 3}`)
+      }
+    } else {
+      // 2x4
+      if (edgeSide === 'left') {
+        // 직선 왼, 곡면 오른 → 오른쪽 양 모서리 잘림
+        cutCorners.add(`${row},${col + 1}`)
+        cutCorners.add(`${row + 3},${col + 1}`)
+      } else {
+        // 직선 오른, 곡면 왼 → 왼쪽 양 모서리 잘림
+        cutCorners.add(`${row},${col}`)
+        cutCorners.add(`${row + 3},${col}`)
+      }
+    }
+    return allCells.filter(([r, c]) => !cutCorners.has(`${r},${c}`))
+  }
+
+  if (def.type === 'large-red' || def.type === 'large-blue') {
+    // 2x2 다이아몬드: 모든 셀이 대각선이라 인접 셀과 면 접촉 없음 (꼭짓점만)
+    // 겹침은 전체 셀로 체크하지만, 인접 판정에서는 제외
+    return []
+  }
+
+  return allCells
 }
 
 /**
@@ -157,22 +224,23 @@ function isValidPlacement(
   }
 
   const newCells = getOccupiedCells(planet.row, planet.col, def, orientation)
+  const newPhysical = getPhysicalCells(planet.row, planet.col, def, orientation, planet.edgeSide)
 
   // 기존 행성들과 비교
   for (const existing of existingPlanets) {
     const existDef = ALL_DEFS.find((d) => d.type === existing.type)!
     const existCells = getOccupiedCells(
-      existing.row,
-      existing.col,
-      existDef,
-      existing.orientation ?? 'horizontal'
+      existing.row, existing.col, existDef, existing.orientation ?? 'horizontal'
+    )
+    const existPhysical = getPhysicalCells(
+      existing.row, existing.col, existDef, existing.orientation ?? 'horizontal', existing.edgeSide
     )
 
-    // 3. 겹침 체크
+    // 3. 겹침 체크 (전체 셀)
     if (hasOverlap(newCells, existCells)) return false
 
-    // 4. 가장자리 맞대기 금지 체크
-    if (hasEdgeContact(newCells, existCells)) return false
+    // 4. 가장자리 맞대기 금지 (물리적 셀만, 토성 고리 제외)
+    if (hasEdgeContact(newPhysical, existPhysical)) return false
   }
 
   // 5. 완전히 둘러싸여 가려지는지 체크
@@ -266,6 +334,48 @@ export function generateRandomBoard(mode: GameMode = 'basic'): Planet[] {
 
   // fallback: 최소한의 배치라도 반환 (실패 시)
   throw new Error('Failed to generate valid board after max attempts')
+}
+
+/**
+ * 배치된 행성 목록이 규칙에 맞는지 검증
+ * 위반 시 사유 문자열 반환, 유효하면 null
+ */
+export function validatePlacement(planets: Planet[]): string | null {
+  for (let i = 0; i < planets.length; i++) {
+    const planet = planets[i]
+    const def = ALL_DEFS.find(d => d.type === planet.type)
+    if (!def) return `알 수 없는 행성 타입: ${planet.type}`
+
+    const orientation = planet.orientation ?? 'horizontal'
+
+    if (!isInBounds(planet.row, planet.col, def, orientation)) {
+      return `${def.type}이(가) 보드 밖에 있습니다`
+    }
+
+    if (def.needsEdge && !touchesEdge(planet.row, planet.col, def, orientation)) {
+      return '큰 흰색 행성의 직선 부분이 보드 가장자리에 닿아야 합니다'
+    }
+
+    const newCells = getOccupiedCells(planet.row, planet.col, def, orientation)
+    const newPhysical = getPhysicalCells(planet.row, planet.col, def, orientation, planet.edgeSide)
+    const others = planets.filter((_, j) => j !== i)
+
+    for (const other of others) {
+      const otherDef = ALL_DEFS.find(d => d.type === other.type)!
+      const otherCells = getOccupiedCells(other.row, other.col, otherDef, other.orientation ?? 'horizontal')
+      const otherPhysical = getPhysicalCells(other.row, other.col, otherDef, other.orientation ?? 'horizontal', other.edgeSide)
+
+      const nameA = PIECE_NAMES[planet.type] ?? planet.type
+      const nameB = PIECE_NAMES[other.type] ?? other.type
+      if (hasOverlap(newCells, otherCells)) {
+        return `${nameA}와(과) ${nameB}이(가) 겹쳐있습니다`
+      }
+      if (hasEdgeContact(newPhysical, otherPhysical)) {
+        return `${nameA}와(과) ${nameB}이(가) 맞닿아 있습니다`
+      }
+    }
+  }
+  return null
 }
 
 /**

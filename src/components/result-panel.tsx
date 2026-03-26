@@ -30,6 +30,12 @@ export default function ResultPanel({
     <>
       {lastResult && !placingMode && (
         <div className="last-result">
+          {selectedHistoryIdx !== null && (
+            <div className="result-row">
+              <span className="result-label">#{selectedHistoryIdx + 1}</span>
+              <span className="result-value">발사: {history[selectedHistoryIdx]?.label}</span>
+            </div>
+          )}
           <div className="result-row">
             <span className="result-label">결과:</span>
             <span className="result-value">

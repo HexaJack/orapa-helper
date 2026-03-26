@@ -30,7 +30,7 @@ export const LASER_COLOR_NAME_KR: Record<LaserColor, string> = {
 }
 
 export const PIECE_NAMES: Record<PlanetType, string> = {
-  'large-white': '대형 흰색', 'small-red': '소형 빨강', 'large-red': '대형 빨강',
-  'large-blue': '대형 파랑', 'yellow': '노랑', 'white-ring': '토성',
+  'large-white': '큰 흰색 행성', 'small-red': '작은 빨간색 행성', 'large-red': '큰 빨간색 행성',
+  'large-blue': '파란색 행성', 'yellow': '노란색 행성', 'white-ring': '흰색 고리 행성',
   'blackhole': '블랙홀',
 }
