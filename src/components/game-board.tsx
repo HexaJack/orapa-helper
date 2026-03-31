@@ -141,59 +141,86 @@ export default function GameBoard() {
   const onGridMouseUp = useCallback((e: React.MouseEvent) => {
     if (draggingIdx !== null) endDrag(e.clientX, e.clientY)
   }, [draggingIdx, endDrag])
-  // 터치: 롱프레스 대신 이동 거리로 드래그/탭 구분
+  // 터치: non-passive 리스너로 직접 등록 (preventDefault 작동 보장)
   const DRAG_THRESHOLD = 8
   const touchStartPos = useRef({ x: 0, y: 0 })
   const pendingDragIdx = useRef<number | null>(null)
+  // 최신 상태를 ref에 저장 (이벤트 리스너에서 접근용)
+  const stateRef = useRef({
+    isPlacing: game.isPlacing,
+    placedPlanets: game.placedPlanets,
+    draggingIdx: null as number | null,
+    cellSize,
+  })
+  stateRef.current = {
+    isPlacing: game.isPlacing,
+    placedPlanets: game.placedPlanets,
+    draggingIdx: draggingIdx,
+    cellSize,
+  }
 
-  const onGridTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!game.isPlacing) return
-    const t = e.touches[0]
-    touchMoved.current = false
-    touchStartPos.current = { x: t.clientX, y: t.clientY }
-    // 배치된 행성 위에 터치했는지 미리 확인
-    const cell = getCellFromPoint(t.clientX, t.clientY)
-    if (cell) {
-      pendingDragIdx.current = findPlacedPlanetAt(cell[0], cell[1])
-    } else {
-      pendingDragIdx.current = null
-    }
-  }, [game.isPlacing, getCellFromPoint, findPlacedPlanetAt])
+  useEffect(() => {
+    const el = gridRef.current
+    if (!el) return
 
-  const onGridTouchMove = useCallback((e: React.TouchEvent) => {
-    const t = e.touches[0]
-    const dx = t.clientX - touchStartPos.current.x
-    const dy = t.clientY - touchStartPos.current.y
-    const dist = Math.sqrt(dx * dx + dy * dy)
-
-    if (!touchMoved.current && dist > DRAG_THRESHOLD && pendingDragIdx.current !== null && pendingDragIdx.current !== -1) {
-      // 드래그 시작
-      touchMoved.current = true
-      const p = game.placedPlanets[pendingDragIdx.current]
-      setDraggingIdx(pendingDragIdx.current)
-      const startCell = getCellFromPoint(touchStartPos.current.x, touchStartPos.current.y)
-      if (startCell && p) {
-        setDragOffset({ x: (startCell[1] - p.col) * cellSize, y: (startCell[0] - p.row) * cellSize })
+    const handleTouchStart = (e: TouchEvent) => {
+      if (!stateRef.current.isPlacing) return
+      const t = e.touches[0]
+      touchMoved.current = false
+      touchStartPos.current = { x: t.clientX, y: t.clientY }
+      const cell = getCellFromPoint(t.clientX, t.clientY)
+      if (cell) {
+        pendingDragIdx.current = findPlacedPlanetAt(cell[0], cell[1])
+      } else {
+        pendingDragIdx.current = null
       }
     }
 
-    if (draggingIdx !== null || touchMoved.current) {
-      e.preventDefault()
-      setDragPos({ x: t.clientX, y: t.clientY })
-    }
-  }, [game.placedPlanets, getCellFromPoint, cellSize, draggingIdx])
+    const handleTouchMove = (e: TouchEvent) => {
+      const t = e.touches[0]
+      const dx = t.clientX - touchStartPos.current.x
+      const dy = t.clientY - touchStartPos.current.y
+      const dist = Math.sqrt(dx * dx + dy * dy)
 
-  const onGridTouchEnd = useCallback((e: React.TouchEvent) => {
-    const t = e.changedTouches[0]
-    if (draggingIdx !== null) {
-      endDrag(t.clientX, t.clientY)
-    } else if (!touchMoved.current) {
-      // 이동 없었으면 탭으로 처리
-      const cell = getCellFromPoint(t.clientX, t.clientY)
-      if (cell) handleCellClick(cell[0], cell[1])
+      if (!touchMoved.current && dist > DRAG_THRESHOLD && pendingDragIdx.current !== null && pendingDragIdx.current !== -1) {
+        touchMoved.current = true
+        const p = stateRef.current.placedPlanets[pendingDragIdx.current]
+        setDraggingIdx(pendingDragIdx.current)
+        const startCell = getCellFromPoint(touchStartPos.current.x, touchStartPos.current.y)
+        if (startCell && p) {
+          setDragOffset({
+            x: (startCell[1] - p.col) * stateRef.current.cellSize,
+            y: (startCell[0] - p.row) * stateRef.current.cellSize,
+          })
+        }
+      }
+
+      if (stateRef.current.draggingIdx !== null || touchMoved.current) {
+        e.preventDefault() // non-passive라서 작동
+        setDragPos({ x: t.clientX, y: t.clientY })
+      }
     }
-    pendingDragIdx.current = null
-  }, [draggingIdx, endDrag, getCellFromPoint, handleCellClick])
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const t = e.changedTouches[0]
+      if (stateRef.current.draggingIdx !== null) {
+        endDrag(t.clientX, t.clientY)
+      } else if (!touchMoved.current) {
+        const cell = getCellFromPoint(t.clientX, t.clientY)
+        if (cell) handleCellClick(cell[0], cell[1])
+      }
+      pendingDragIdx.current = null
+    }
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: true })
+    el.addEventListener('touchmove', handleTouchMove, { passive: false })
+    el.addEventListener('touchend', handleTouchEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart)
+      el.removeEventListener('touchmove', handleTouchMove)
+      el.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [getCellFromPoint, findPlacedPlanetAt, endDrag, handleCellClick])
 
   return (
     <div className="board-container">
@@ -253,11 +280,9 @@ export default function GameBoard() {
             style={{
               gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
               gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
-              ...(draggingIdx !== null ? { touchAction: 'none' } : game.isPlacing ? { touchAction: 'pan-y' } : {}),
             }}
             onMouseDown={onGridMouseDown} onMouseMove={onGridMouseMove}
             onMouseUp={onGridMouseUp} onMouseLeave={onGridMouseUp}
-            onTouchStart={onGridTouchStart} onTouchMove={onGridTouchMove} onTouchEnd={onGridTouchEnd}
           >
             {Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, i) => {
               const row = Math.floor(i / GRID_SIZE), col = i % GRID_SIZE
