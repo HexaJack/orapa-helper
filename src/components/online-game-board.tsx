@@ -42,8 +42,7 @@ export default function OnlineGameBoard({
   const [laserPath, setLaserPath] = useState<Set<string>>(new Set())
   const [emptyCells, setEmptyCells] = useState<Set<string>>(new Set())
 
-  // 배치 모드
-  const [placingMode, setPlacingMode] = useState(false)
+  // 배치
   const [placedPlanets, setPlacedPlanets] = useState<Planet[]>([])
   const [selectedPiece, setSelectedPiece] = useState<PlanetDef | null>(null)
   const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>('horizontal')
@@ -87,7 +86,7 @@ export default function OnlineGameBoard({
   const firedLabels = new Set(roomState.firedLabels)
 
   const handleFire = useCallback((label: string) => {
-    if (isEliminated || !isMyTurn || placingMode) return
+    if (isEliminated || !isMyTurn) return
     if (firedLabels.has(label)) {
       // 중복이면 결과만 다시 보기
       const entry = roomState.history.find(h => h.label === label)
@@ -98,7 +97,7 @@ export default function OnlineGameBoard({
       return
     }
     onFire(label)
-  }, [isEliminated, isMyTurn, placingMode, firedLabels, roomState.history, onFire])
+  }, [isEliminated, isMyTurn, firedLabels, roomState.history, onFire])
 
   // 히스토리 클릭
   const handleHistoryClick = useCallback((idx: number) => {
@@ -138,7 +137,7 @@ export default function OnlineGameBoard({
   }, [placedPlanets, availablePieces])
 
   const handleCellClick = useCallback((row: number, col: number) => {
-    if (!placingMode) return
+    if (isEliminated || roomState.phase !== 'playing') return
     const existingIdx = findPlacedPlanetAt(row, col)
     if (existingIdx !== -1) {
       const existing = placedPlanets[existingIdx]
@@ -180,7 +179,7 @@ export default function OnlineGameBoard({
     if (selectedPiece.type === 'large-white') newPlanet.edgeSide = o === 'horizontal' ? 'top' : 'left'
     setPlacedPlanets([...placedPlanets, newPlanet])
     if (usedCount + 1 >= maxCount) setSelectedPiece(null)
-  }, [placingMode, placedPlanets, selectedPiece, orientation, availablePieces, placedCounts, availableCounts, findPlacedPlanetAt])
+  }, [isEliminated, roomState.phase, placedPlanets, selectedPiece, orientation, availablePieces, placedCounts, availableCounts, findPlacedPlanetAt])
 
   const allPlaced = placedPlanets.length === availablePieces.length
 
@@ -222,8 +221,8 @@ export default function OnlineGameBoard({
         </div>
       </div>
 
-      {/* 배치 모드 트레이 */}
-      {placingMode && (
+      {/* 배치 트레이 (항상 표시) */}
+      {roomState.phase === 'playing' && !isEliminated && (
         <PieceTray
           availableCounts={availableCounts} placedCounts={placedCounts}
           availablePieces={availablePieces} selectedPiece={selectedPiece}
@@ -252,20 +251,20 @@ export default function OnlineGameBoard({
               const isLaserPath = laserPath.has(`${row},${col}`)
               const isEmpty = emptyCells.has(`${row},${col}`)
               const classes = ['cell']
-              if (isLaserPath && isHost && planets) classes.push('laser-path')
+              if (isLaserPath) classes.push('laser-path')
               if (isEmpty) classes.push('cell-empty')
-              if (placingMode) classes.push('cell-placeable')
+              classes.push('cell-placeable')
               return (
                 <div key={`${row}-${col}`} className={classes.join(' ')}
-                  style={isLaserPath && isHost && lastResult ? { backgroundColor: LASER_COLOR_MAP[lastResult.color] + '33' } : undefined}
-                  onClick={() => placingMode && handleCellClick(row, col)} />
+                  style={isLaserPath && lastResult ? { backgroundColor: LASER_COLOR_MAP[lastResult.color] + '33' } : undefined}
+                  onClick={() => handleCellClick(row, col)} />
               )
             })}
             {/* 호스트만 행성 보임 (게임 종료 시) */}
             {isHost && planets && roomState.phase === 'finished' && (
               <PlanetOverlay planets={planets} visible cellSize={cellSize} />
             )}
-            {placingMode && <PlanetOverlay planets={placedPlanets} visible cellSize={cellSize} />}
+            {placedPlanets.length > 0 && <PlanetOverlay planets={placedPlanets} visible cellSize={cellSize} />}
           </div>
           <RightLabels onFire={handleFire} getEdgeClass={getEdgeClass} />
         </div>
@@ -278,29 +277,19 @@ export default function OnlineGameBoard({
           lastResult={lastResult}
           history={roomState.history.map(h => ({ label: h.label, result: h.result }))}
           selectedHistoryIdx={selectedHistoryIdx}
-          placingMode={placingMode}
+          placingMode={false}
           onHistoryClick={handleHistoryClick}
         />
 
         <div className="controls">
           {roomState.phase === 'playing' && !isEliminated && (
             <>
-              {!placingMode ? (
-                <button className="btn btn-finish"
-                  onClick={() => { setPlacingMode(true); setPlacedPlanets([]) }}>
-                  정답 제출
-                </button>
-              ) : (
-                <>
-                  <button className="btn" onClick={() => setPlacingMode(false)}>돌아가기</button>
-                  <button className="btn btn-finish" disabled={!allPlaced}
-                    onClick={() => { onSubmitAnswer(placedPlanets); setPlacingMode(false); setPlacedPlanets([]) }}>
-                    제출
-                  </button>
-                  {placedPlanets.length > 0 && (
-                    <button className="btn" onClick={() => { setPlacedPlanets([]); setSelectedPiece(null) }}>초기화</button>
-                  )}
-                </>
+              <button className="btn btn-finish" disabled={!allPlaced}
+                onClick={() => { onSubmitAnswer(placedPlanets); setPlacedPlanets([]); setSelectedPiece(null) }}>
+                정답 확인
+              </button>
+              {placedPlanets.length > 0 && (
+                <button className="btn" onClick={() => { setPlacedPlanets([]); setSelectedPiece(null) }}>초기화</button>
               )}
             </>
           )}
