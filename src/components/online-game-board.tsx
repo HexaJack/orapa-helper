@@ -1,12 +1,10 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import './game-board.css'
 import './online-game-board.css'
 import type { Planet } from '../game/types'
 import { GRID_SIZE } from '../game/types'
-import { LASER_COLOR_MAP } from '../game/constants'
 import { isPassthrough, getPassthroughCells } from '../game/helpers'
 import type { RoomState, PlayerInfo } from '../game/multiplayer-types'
-import type { LaserResult } from '../game/laser'
 import PlanetOverlay from './planet-overlay'
 import { TopLabels, BottomLabels, LeftLabels, RightLabels } from './edge-labels'
 import PieceTray from './piece-tray'
@@ -38,9 +36,6 @@ export default function OnlineGameBoard({
 }: Props) {
   const [cellSize, setCellSize] = useState(30)
   const [selectedHistoryIdx, setSelectedHistoryIdx] = useState<number | null>(null)
-  const [lastResult, setLastResult] = useState<LaserResult | null>(null)
-  const [laserPath, setLaserPath] = useState<Set<string>>(new Set())
-  const [emptyCells, setEmptyCells] = useState<Set<string>>(new Set())
 
   // 배치
   const [placedPlanets, setPlacedPlanets] = useState<Planet[]>([])
@@ -60,40 +55,35 @@ export default function OnlineGameBoard({
     return () => window.removeEventListener('resize', update)
   }, [cellSize])
 
-  // 히스토리 업데이트 시 마지막 결과 자동 반영
-  useEffect(() => {
-    if (roomState.history.length > 0) {
-      const last = roomState.history[roomState.history.length - 1]
-      setLastResult(last.result)
-      setLaserPath(new Set(last.result.path.map(s => `${s.row},${s.col}`)))
+  // 히스토리에서 파생 (useMemo)
+  const activeIdx = selectedHistoryIdx ?? (roomState.history.length > 0 ? roomState.history.length - 1 : null)
+  const lastResult = useMemo(() => {
+    if (activeIdx === null) return null
+    return roomState.history[activeIdx]?.result ?? null
+  }, [roomState.history, activeIdx])
 
-      // 관통 빈 칸
+  const emptyCells = useMemo(() => {
+    const cells = new Set<string>()
+    for (const h of roomState.history) {
       if (
-        last.result.color === 'transparent' && last.result.exitPoint &&
-        last.result.exitPoint !== '소멸' && last.result.exitPoint !== '갇힘' &&
-        isPassthrough(last.label, last.result.exitPoint)
+        h.result.color === 'transparent' && h.result.exitPoint &&
+        h.result.exitPoint !== '소멸' && h.result.exitPoint !== '갇힘' &&
+        isPassthrough(h.label, h.result.exitPoint)
       ) {
-        const cells = getPassthroughCells(last.label)
-        setEmptyCells(prev => {
-          const next = new Set(prev)
-          cells.forEach(([r, c]) => next.add(`${r},${c}`))
-          return next
-        })
+        getPassthroughCells(h.label).forEach(([r, c]) => cells.add(`${r},${c}`))
       }
     }
-  }, [roomState.history.length])
+    return cells
+  }, [roomState.history])
 
-  const firedLabels = new Set(roomState.firedLabels)
+  const firedLabels = useMemo(() => new Set(roomState.firedLabels), [roomState.firedLabels])
 
   const handleFire = useCallback((label: string) => {
     if (isEliminated || !isMyTurn) return
     if (firedLabels.has(label)) {
-      // 중복이면 결과만 다시 보기
-      const entry = roomState.history.find(h => h.label === label)
-      if (entry) {
-        setLastResult(entry.result)
-        setLaserPath(new Set(entry.result.path.map(s => `${s.row},${s.col}`)))
-      }
+      // 중복이면 해당 기록 선택
+      const idx = roomState.history.findIndex(h => h.label === label)
+      if (idx !== -1) setSelectedHistoryIdx(idx)
       return
     }
     onFire(label)
@@ -101,21 +91,12 @@ export default function OnlineGameBoard({
 
   // 히스토리 클릭
   const handleHistoryClick = useCallback((idx: number) => {
-    const entry = roomState.history[idx]
-    if (!entry) return
     if (selectedHistoryIdx === idx) {
       setSelectedHistoryIdx(null)
-      if (roomState.history.length > 0) {
-        const last = roomState.history[roomState.history.length - 1]
-        setLastResult(last.result)
-        setLaserPath(new Set(last.result.path.map(s => `${s.row},${s.col}`)))
-      }
-      return
+    } else {
+      setSelectedHistoryIdx(idx)
     }
-    setSelectedHistoryIdx(idx)
-    setLastResult(entry.result)
-    setLaserPath(new Set(entry.result.path.map(s => `${s.row},${s.col}`)))
-  }, [roomState.history, selectedHistoryIdx])
+  }, [selectedHistoryIdx])
 
   // 배치 로직 (game-board.tsx와 동일)
   const availablePieces = getAvailablePieces(roomState.gameMode)
@@ -248,15 +229,12 @@ export default function OnlineGameBoard({
           >
             {Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, i) => {
               const row = Math.floor(i / GRID_SIZE), col = i % GRID_SIZE
-              const isLaserPath = laserPath.has(`${row},${col}`)
               const isEmpty = emptyCells.has(`${row},${col}`)
               const classes = ['cell']
-              if (isLaserPath) classes.push('laser-path')
               if (isEmpty) classes.push('cell-empty')
               classes.push('cell-placeable')
               return (
                 <div key={`${row}-${col}`} className={classes.join(' ')}
-                  style={isLaserPath && lastResult ? { backgroundColor: LASER_COLOR_MAP[lastResult.color] + '33' } : undefined}
                   onClick={() => handleCellClick(row, col)} />
               )
             })}

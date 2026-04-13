@@ -152,12 +152,14 @@ export default function GameBoard() {
     draggingIdx: null as number | null,
     cellSize,
   })
-  stateRef.current = {
-    isPlacing: game.isPlacing,
-    placedPlanets: game.placedPlanets,
-    draggingIdx: draggingIdx,
-    cellSize,
-  }
+  useEffect(() => {
+    stateRef.current = {
+      isPlacing: game.isPlacing,
+      placedPlanets: game.placedPlanets,
+      draggingIdx,
+      cellSize,
+    }
+  })
 
   useEffect(() => {
     const el = gridRef.current

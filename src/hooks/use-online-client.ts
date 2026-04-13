@@ -87,7 +87,7 @@ export function useOnlineClient(roomCode: string, playerName: string) {
 
   // ref로 최신 핸들러 참조
   const handleHostMessageRef = useRef(handleHostMessage)
-  handleHostMessageRef.current = handleHostMessage
+  useEffect(() => { handleHostMessageRef.current = handleHostMessage }, [handleHostMessage])
 
   // 채널 연결 (한 번만)
   useEffect(() => {
@@ -120,7 +120,6 @@ export function useOnlineClient(roomCode: string, playerName: string) {
       })
       channel.unsubscribe()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode, playerId, playerName])
 
   // 발사 요청

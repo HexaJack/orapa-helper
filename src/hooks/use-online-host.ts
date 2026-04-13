@@ -10,11 +10,17 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 
 export function useOnlineHost(hostName: string, gameMode: GameMode, targetDifficulty: DifficultyLevel | 'any') {
   const [roomCode] = useState(generateRoomCode)
+  const [hostId] = useState(getPlayerId)
   const [roomState, setRoomState] = useState<RoomState>(() => ({
     roomCode,
     gameMode,
     difficulty: 0,
-    players: [],
+    players: [{
+      id: getPlayerId(),
+      name: hostName,
+      wrongAnswers: 0,
+      eliminated: false,
+    }],
     currentTurnPlayerId: null,
     history: [],
     phase: 'lobby' as RoomPhase,
@@ -24,10 +30,9 @@ export function useOnlineHost(hostName: string, gameMode: GameMode, targetDiffic
   const [planets, setPlanets] = useState<Planet[]>([])
   const channelRef = useRef<RealtimeChannel | null>(null)
   const stateRef = useRef(roomState)
-  stateRef.current = roomState
   const planetsRef = useRef(planets)
-  planetsRef.current = planets
-  const hostId = getPlayerId()
+  useEffect(() => { stateRef.current = roomState }, [roomState])
+  useEffect(() => { planetsRef.current = planets }, [planets])
 
   // 방 상태 브로드캐스트
   const broadcastState = useCallback((state: RoomState) => {
@@ -196,7 +201,7 @@ export function useOnlineHost(hostName: string, gameMode: GameMode, targetDiffic
 
   // ref로 최신 핸들러 참조 (useEffect 의존성에서 제거)
   const handleClientMessageRef = useRef(handleClientMessage)
-  handleClientMessageRef.current = handleClientMessage
+  useEffect(() => { handleClientMessageRef.current = handleClientMessage }, [handleClientMessage])
 
   // 채널 초기화 (한 번만)
   useEffect(() => {
@@ -211,30 +216,9 @@ export function useOnlineHost(hostName: string, gameMode: GameMode, targetDiffic
     channel.subscribe()
     channelRef.current = channel
 
-    // 호스트 자신을 플레이어로 추가
-    const hostPlayer: PlayerInfo = {
-      id: hostId,
-      name: hostName,
-      wrongAnswers: 0,
-      eliminated: false,
-    }
-    const initialState: RoomState = {
-      roomCode,
-      gameMode,
-      difficulty: 0,
-      players: [hostPlayer],
-      currentTurnPlayerId: null,
-      history: [],
-      phase: 'lobby',
-      winnerId: null,
-      firedLabels: [],
-    }
-    setRoomState(initialState)
-
     return () => {
       channel.unsubscribe()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode, hostId, hostName, gameMode])
 
   // 게임 시작
