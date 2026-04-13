@@ -107,8 +107,19 @@ touchend (passive: true) → 드래그 종료 또는 탭 처리
 5. **솔로/멀티 분리**: `isSolo`로 배치 모드 상시 활성/제출 후 활성 구분
 6. **정답 보기 비교**: 실제 행성 100% + 배치한 행성 35% 투명도 오버레이
 
+## 온라인 멀티플레이어
+
+Supabase Realtime Broadcast 사용. DB 없음. 상세: `docs/multiplayer.md`
+
+- 호스트 폰 = 게임 서버 (planets 보유, fireLaser 실행)
+- 클라이언트 = 요청 전송 + 결과 수신
+- 채널 = 방 코드 (6자리)
+- 턴제 발사 + 자유 정답 제출 + 2회 오답 탈락
+- 기존 솔로/로컬 코드 변경 없음 (App.tsx에서 분기만)
+- 환경변수: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+
 ## 알려진 이슈
 
 - 난이도 '어려움' 도달이 기본 모드에서 여전히 드물 수 있음
 - 드래그 UX가 PC에서는 양호하지만 모바일에서 정밀도 부족
-- `AnswerBoard.tsx`는 Board 통합 시 삭제 완료
+- 온라인: 호스트 이탈 시 게임 종료, 자동 재접속 미구현
