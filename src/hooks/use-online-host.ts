@@ -194,14 +194,18 @@ export function useOnlineHost(hostName: string, gameMode: GameMode, targetDiffic
     }
   }, [broadcastState, getNextTurnPlayerId])
 
-  // 채널 초기화
+  // ref로 최신 핸들러 참조 (useEffect 의존성에서 제거)
+  const handleClientMessageRef = useRef(handleClientMessage)
+  handleClientMessageRef.current = handleClientMessage
+
+  // 채널 초기화 (한 번만)
   useEffect(() => {
     const channel = supabase.channel(roomCode, {
       config: { broadcast: { self: true } },
     })
 
     channel.on('broadcast', { event: 'client-message' }, ({ payload }) => {
-      handleClientMessage(payload as ClientMessage)
+      handleClientMessageRef.current(payload as ClientMessage)
     })
 
     channel.subscribe()
@@ -230,7 +234,8 @@ export function useOnlineHost(hostName: string, gameMode: GameMode, targetDiffic
     return () => {
       channel.unsubscribe()
     }
-  }, [roomCode, hostId, hostName, gameMode, handleClientMessage])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomCode, hostId, hostName, gameMode])
 
   // 게임 시작
   const startGame = useCallback(() => {

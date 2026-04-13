@@ -85,20 +85,23 @@ export function useOnlineClient(roomCode: string, playerName: string) {
     }
   }, [playerId, showToast, roomState?.players])
 
-  // 채널 연결
+  // ref로 최신 핸들러 참조
+  const handleHostMessageRef = useRef(handleHostMessage)
+  handleHostMessageRef.current = handleHostMessage
+
+  // 채널 연결 (한 번만)
   useEffect(() => {
     const channel = supabase.channel(roomCode, {
       config: { broadcast: { self: true } },
     })
 
     channel.on('broadcast', { event: 'host-message' }, ({ payload }) => {
-      handleHostMessage(payload as HostMessage)
+      handleHostMessageRef.current(payload as HostMessage)
     })
 
     channel.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
         setConnected(true)
-        // 참가 요청
         channel.send({
           type: 'broadcast',
           event: 'client-message',
@@ -117,7 +120,8 @@ export function useOnlineClient(roomCode: string, playerName: string) {
       })
       channel.unsubscribe()
     }
-  }, [roomCode, playerId, playerName, handleHostMessage])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomCode, playerId, playerName])
 
   // 발사 요청
   const requestFire = useCallback((label: string) => {
