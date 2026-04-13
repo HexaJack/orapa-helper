@@ -28,3 +28,19 @@
     align-items: center;
   }
 }
+
+.btn-online {
+  padding: 8px 24px;
+  border-radius: 8px;
+  border: 1px solid #a855f7;
+  background: #a855f722;
+  color: #c084fc;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-online:hover {
+  background: #a855f744;
+}

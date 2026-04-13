@@ -1,73 +1,107 @@
-# React + TypeScript + Vite
+# Orapa Space Helper
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Orapa Space 보드게임의 호스트 역할을 대체하는 웹 앱. 행성을 랜덤 배치하고 레이저 발사 요청에 응답하며, 솔로 플레이도 지원.
 
-Currently, two official plugins are available:
+## 게임 소개
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+[Orapa Space](https://www.playte.com)는 레이저를 발사해서 숨겨진 행성의 위치를 추론하는 보드게임. 한 명이 호스트(출제자)가 되어 행성을 배치하고, 다른 플레이어가 레이저를 쏘며 질문하는 방식. 이 앱은 호스트 역할을 프로그램이 대신하고, 1인 솔로 모드도 제공.
 
-## React Compiler
+## 주요 기능
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 게임 모드
+- **솔로 모드**: 레이저 발사 + 행성 배치를 동시에 하며 혼자 추리
+- **멀티 모드**: 기존 보드게임처럼 레이저 발사 후 제출하여 정답 맞추기
+- **기본 / 블랙홀**: 블랙홀 확장 규칙 지원 (레이저 굴절, 소멸)
 
-## Expanding the ESLint configuration
+### 난이도 시스템
+- 쉬움 / 보통 / 어려움 / 전체 선택
+- 난이도 점수 0~10 (빈 라인 비율, 인접 탈출, 경로 길이, 밀집도, 색상 다양성, 정보 중복도 기반)
+- 선택한 난이도에 맞는 보드 자동 생성 (최대 200회 시도)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 레이저 시뮬레이션
+- 36개 발사 지점 (상단 1-9, 우측 10-18, 좌측 A-I, 하단 J-R)
+- 행성별 반사 규칙 구현 (정면 반사, 직각 반사, 통과, 흡수)
+- 16가지 레이저 색상 혼합 (2색, 흰색 혼합, 3색 이상)
+- 블랙홀 굴절 (인접 통과 시 지난 후 꺾임) 및 직접 충돌 소멸
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### 행성 배치 (정답 입력)
+- 조각 트레이에서 선택 → 그리드 탭으로 배치
+- 터치 드래그로 이동 (distance-based 탭/드래그 구분)
+- 탭으로 회전 (대형 흰색 4방향, 토성 2방향)
+- 배치 규칙 실시간 검증 (겹침, 인접, 가장자리 접촉)
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### UI 기능
+- 발사한 지점 빨간 하이라이트 (상시)
+- 관통(투명+직선) 시 빈 칸 표시
+- 발사 기록 클릭으로 경로 다시 보기
+- 중복 발사 시 토스트 + 결과 하이라이트 (기록 미추가)
+- 색상 조합 참조 테이블
+- 솔로 정답 보기: 확인 모달 + 배치한 행성 반투명 비교
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 행성 종류
+
+| 행성 | 크기 | 반사 규칙 |
+|------|------|-----------|
+| 큰 흰색 행성 | 4x2 | 반팔각형, 직선 부분 가장자리 필수, 곡면 귀퉁이만 직각 반사 |
+| 작은 빨간색 행성 | 1x1 | 정사각형, 정면(수직/수평) 반사 |
+| 큰 빨간색 행성 | 2x2 | 다이아몬드, 직각 방향 반사 |
+| 파란색 행성 | 2x2 | 다이아몬드, 직각 방향 반사 |
+| 노란색 행성 | 3x3 | 팔각형, 귀퉁이만 직각 반사 |
+| 흰색 고리 행성 | 4x2 | 원(다이아몬드 반사) + 고리(수직 반사, 수평 통과) |
+| 블랙홀 | 1x1 | 반사 없음, 직접 충돌 시 소멸, 인접 통과 시 굴절 |
+
+## 인접 배치 규칙
+
+면 접촉만 인접으로 판정. 꼭짓점/대각선 접촉은 허용:
+- **다이아몬드 (빨/파)**: 모든 셀 대각선 → 인접 판정 제외
+- **토성**: 고리 부분 → 인접 판정 제외 (중앙 다이아몬드만 판정)
+- **대형 흰색**: 잘린 모서리 → 인접 판정 제외
+
+## 기술 스택
+
+- **프레임워크**: React 19 + TypeScript + Vite
+- **앱 래핑**: Capacitor (iOS/Android WebView)
+- **배포**: Vercel (정적 사이트)
+- **저장**: localStorage (게임 기록)
+- **상태 관리**: React hooks (use-game.ts 커스텀 훅)
+
+## 프로젝트 구조
+
+```
+src/
+├── components/
+│   ├── game-board.tsx    # 메인 보드 UI + 드래그 로직
+│   ├── edge-labels.tsx   # 4변 발사 라벨
+│   ├── piece-tray.tsx    # 배치 조각 선택 트레이
+│   ├── result-panel.tsx  # 결과 + 발사 기록
+│   ├── game-modals.tsx   # 확인/완료 모달
+│   ├── planet-overlay.tsx # 행성 SVG 오버레이
+│   └── color-table.tsx   # 색상 조합 참조표
+├── game/
+│   ├── types.ts          # 타입 정의 + 행성 상수
+│   ├── laser.ts          # 레이저 반사 시뮬레이션
+│   ├── board.ts          # 보드 생성 + 배치 검증
+│   ├── difficulty.ts     # 난이도 분석
+│   ├── storage.ts        # localStorage 기록 저장
+│   ├── helpers.ts        # 관통 판별 유틸
+│   ├── constants.ts      # 색상맵, 라벨, 이름 상수
+│   └── planetSvg.ts      # 행성 SVG 경로 헬퍼
+├── hooks/
+│   └── use-game.ts       # 게임 상태 관리 커스텀 훅
+└── public/planets/       # 행성 SVG 에셋 (13개)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 개발
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev      # 개발 서버 (http://localhost:5173)
+npm run build    # 프로덕션 빌드
+npm run preview  # 빌드 결과 미리보기
 ```
+
+## 향후 계획
+
+- WiFi 기반 멀티플레이어 (WebSocket)
+- PWA 설정 (홈 화면 추가)
+- 게임 기록 조회/내보내기 UI

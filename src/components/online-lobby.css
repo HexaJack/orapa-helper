@@ -1,0 +1,134 @@
+.lobby {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2rem 1rem;
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+.lobby h2 {
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.lobby-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.lobby-input {
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 15px;
+  outline: none;
+  text-align: center;
+}
+
+.lobby-input:focus {
+  border-color: var(--primary);
+}
+
+.lobby-code-input {
+  font-size: 24px;
+  letter-spacing: 8px;
+  font-weight: 700;
+}
+
+.lobby-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.lobby-buttons .btn {
+  flex: 1;
+}
+
+.btn-back {
+  background: transparent;
+  border-color: #555;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.lobby-name {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.lobby-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.lobby-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.lobby-status {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* 방 코드 표시 */
+.room-code-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--surface);
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  border: 1px solid #444;
+}
+
+.room-code-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.room-code {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  color: var(--text);
+}
+
+/* 플레이어 리스트 */
+.player-list {
+  width: 100%;
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.player-list h3 {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.player-item {
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.player-item.host,
+.player-item.me {
+  color: #22c55e;
+  font-weight: 600;
+}

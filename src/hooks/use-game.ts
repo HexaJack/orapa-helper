@@ -199,7 +199,7 @@ export function useGame() {
   }
 }
 
-function comparePlacements(answer: Planet[], actual: Planet[]): boolean {
+export function comparePlacements(answer: Planet[], actual: Planet[]): boolean {
   if (answer.length !== actual.length) return false
   const normalize = (planets: Planet[]) =>
     planets.map(p => ({
