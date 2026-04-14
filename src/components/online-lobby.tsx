@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { GameMode } from '../game/types'
 import type { DifficultyLevel } from '../game/difficulty'
 import type { RoomState } from '../game/multiplayer-types'
+import { savePlayerName, loadPlayerName } from '../game/session'
 import './online-lobby.css'
 
 interface Props {
@@ -11,7 +12,7 @@ interface Props {
 
 export default function OnlineLobby({ onBack, onGameStart }: Props) {
   const [screen, setScreen] = useState<'menu' | 'create' | 'join'>('menu')
-  const [playerName, setPlayerName] = useState('')
+  const [playerName, setPlayerName] = useState(loadPlayerName)
   const [roomCode, setRoomCode] = useState('')
   const [gameMode, setGameMode] = useState<GameMode>('basic')
   const [difficulty, setDifficulty] = useState<DifficultyLevel | 'any'>('any')
@@ -30,10 +31,18 @@ export default function OnlineLobby({ onBack, onGameStart }: Props) {
             maxLength={10}
           />
           <div className="lobby-buttons">
-            <button className="btn btn-finish" onClick={() => playerName.trim() && setScreen('create')}>
+            <button className="btn btn-finish" onClick={() => {
+              if (!playerName.trim()) return
+              savePlayerName(playerName.trim())
+              setScreen('create')
+            }}>
               방 만들기
             </button>
-            <button className="btn" onClick={() => playerName.trim() && setScreen('join')}>
+            <button className="btn" onClick={() => {
+              if (!playerName.trim()) return
+              savePlayerName(playerName.trim())
+              setScreen('join')
+            }}>
               방 참가
             </button>
           </div>

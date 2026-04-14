@@ -99,9 +99,10 @@ export function useOnlineClient(roomCode: string, playerName: string) {
       handleHostMessageRef.current(payload as HostMessage)
     })
 
-    channel.subscribe((status) => {
+    channel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         setConnected(true)
+        await channel.track({ playerId })
         channel.send({
           type: 'broadcast',
           event: 'client-message',

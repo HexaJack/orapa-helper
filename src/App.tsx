@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import './App.css'
 import GameBoard from './components/game-board'
 import ColorTable from './components/color-table'
@@ -6,24 +6,35 @@ import OnlineLobby, { HostWaitingRoom, ClientWaitingRoom } from './components/on
 import OnlineGameBoard from './components/online-game-board'
 import { useOnlineHost } from './hooks/use-online-host'
 import { useOnlineClient } from './hooks/use-online-client'
+import { saveSession, loadSession, clearSession } from './game/session'
 
 type AppMode = 'local' | 'online-menu' | 'host-lobby' | 'host-game' | 'client-lobby' | 'client-game'
 
 function App() {
-  const [appMode, setAppMode] = useState<AppMode>('local')
-  const [onlineConfig, setOnlineConfig] = useState({
-    roomCode: '',
-    playerName: '',
+  const [appMode, setAppMode] = useState<AppMode>(() => {
+    const session = loadSession()
+    if (!session) return 'local'
+    return session.role === 'host' ? 'host-game' : 'client-game'
+  })
+  const [onlineConfig, setOnlineConfig] = useState(() => {
+    const session = loadSession()
+    return {
+      roomCode: session?.roomCode ?? '',
+      playerName: session?.playerName ?? '',
+    }
   })
 
   const handleGameStart = useCallback((mode: 'host' | 'client', roomCode: string, playerName: string) => {
     setOnlineConfig({ roomCode, playerName })
-    setAppMode(mode === 'host' ? 'host-lobby' : 'client-lobby')
+    const newMode: AppMode = mode === 'host' ? 'host-lobby' : 'client-lobby'
+    setAppMode(newMode)
+    saveSession({ role: mode, roomCode, playerName })
   }, [])
 
   const handleBack = useCallback(() => {
     setAppMode('local')
     setOnlineConfig({ roomCode: '', playerName: '' })
+    clearSession()
   }, [])
 
   if (appMode === 'local') {
@@ -80,6 +91,13 @@ function HostSession({ playerName, appMode, setAppMode, onBack }: {
 }) {
   const host = useOnlineHost(playerName, 'basic', 'any')
 
+  // 세션에 roomCode 저장 (호스트는 코드가 동적 생성됨)
+  useEffect(() => {
+    if (host.roomCode) {
+      saveSession({ role: 'host', roomCode: host.roomCode, playerName })
+    }
+  }, [host.roomCode, playerName])
+
   const handleStart = useCallback(() => {
     host.startGame()
     setAppMode('host-game')
@@ -111,6 +129,8 @@ function HostSession({ playerName, appMode, setAppMode, onBack }: {
         toast={null}
         onFire={host.hostFire}
         onSubmitAnswer={host.hostSubmitAnswer}
+        onSkipTurn={host.skipTurn}
+        onKickPlayer={host.kickPlayer}
         onLeave={onBack}
       />
     </div>
@@ -127,9 +147,11 @@ function ClientSession({ roomCode, playerName, appMode, setAppMode, onBack }: {
   const client = useOnlineClient(roomCode, playerName)
 
   // 게임 시작 감지
-  if (appMode === 'client-lobby' && client.roomState?.phase === 'playing') {
-    setAppMode('client-game')
-  }
+  useEffect(() => {
+    if (appMode === 'client-lobby' && client.roomState?.phase === 'playing') {
+      setAppMode('client-game')
+    }
+  }, [appMode, client.roomState?.phase, setAppMode])
 
   if (appMode === 'client-lobby') {
     return (

@@ -6,6 +6,7 @@ export interface PlayerInfo {
   name: string
   wrongAnswers: number
   eliminated: boolean
+  online: boolean
 }
 
 export type RoomPhase = 'lobby' | 'playing' | 'finished'

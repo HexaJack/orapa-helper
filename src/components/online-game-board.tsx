@@ -4,6 +4,7 @@ import './online-game-board.css'
 import type { Planet } from '../game/types'
 import { GRID_SIZE } from '../game/types'
 import { isPassthrough, getPassthroughCells } from '../game/helpers'
+import { getPlanetSvgPath } from '../game/planetSvg'
 import type { RoomState, PlayerInfo } from '../game/multiplayer-types'
 import PlanetOverlay from './planet-overlay'
 import { TopLabels, BottomLabels, LeftLabels, RightLabels } from './edge-labels'
@@ -26,13 +27,15 @@ interface Props {
   toast: string | null
   onFire: (label: string) => void
   onSubmitAnswer: (planets: Planet[]) => void
+  onSkipTurn?: (targetPlayerId: string) => void
+  onKickPlayer?: (targetPlayerId: string) => void
   onLeave: () => void
 }
 
 export default function OnlineGameBoard({
   roomState, playerId, isHost, planets,
   isMyTurn, isEliminated, toast,
-  onFire, onSubmitAnswer, onLeave,
+  onFire, onSubmitAnswer, onSkipTurn, onKickPlayer, onLeave,
 }: Props) {
   const [cellSize, setCellSize] = useState(30)
   const [selectedHistoryIdx, setSelectedHistoryIdx] = useState<number | null>(null)
@@ -42,7 +45,12 @@ export default function OnlineGameBoard({
   const [selectedPiece, setSelectedPiece] = useState<PlanetDef | null>(null)
   const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>('horizontal')
 
+  // 드래그
+  const [draggingIdx, setDraggingIdx] = useState<number | null>(null)
+  const [dragPos, setDragPos] = useState({ x: 0, y: 0 })
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const gridRef = useRef<HTMLDivElement>(null)
+  const touchMoved = useRef(false)
 
   useEffect(() => {
     const update = () => {
@@ -164,6 +172,125 @@ export default function OnlineGameBoard({
 
   const allPlaced = placedPlanets.length === availablePieces.length
 
+  // 드래그 핸들러
+  const isPlacing = roomState.phase === 'playing' && !isEliminated
+
+  const getCellFromPoint = useCallback((cx: number, cy: number): [number, number] | null => {
+    const el = gridRef.current
+    if (!el) return null
+    const rect = el.getBoundingClientRect()
+    const col = Math.floor((cx - rect.left) / cellSize)
+    const row = Math.floor((cy - rect.top) / cellSize)
+    if (row < 0 || row >= GRID_SIZE || col < 0 || col >= GRID_SIZE) return null
+    return [row, col]
+  }, [cellSize])
+
+  const endDrag = useCallback((cx: number, cy: number) => {
+    if (draggingIdx === null) return
+    const cell = getCellFromPoint(cx - dragOffset.x + cellSize / 2, cy - dragOffset.y + cellSize / 2)
+    if (cell) {
+      const p = placedPlanets[draggingIdx]
+      const def = availablePieces.find(d => d.type === p.type)!
+      const o = p.orientation ?? 'horizontal'
+      const w = o === 'horizontal' ? def.width : def.height
+      const h = o === 'horizontal' ? def.height : def.width
+      if (cell[0] + h <= GRID_SIZE && cell[1] + w <= GRID_SIZE) {
+        const updated = [...placedPlanets]
+        updated[draggingIdx] = { ...p, row: cell[0], col: cell[1] }
+        setPlacedPlanets(updated)
+      }
+    }
+    setDraggingIdx(null)
+  }, [draggingIdx, dragOffset, placedPlanets, availablePieces, getCellFromPoint, cellSize])
+
+  const onGridMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!isPlacing) return
+    const cell = getCellFromPoint(e.clientX, e.clientY)
+    if (!cell) return
+    const idx = findPlacedPlanetAt(cell[0], cell[1])
+    if (idx === -1) return
+    const p = placedPlanets[idx]
+    setDraggingIdx(idx)
+    setDragOffset({ x: (cell[1] - p.col) * cellSize, y: (cell[0] - p.row) * cellSize })
+    setDragPos({ x: e.clientX, y: e.clientY })
+  }, [isPlacing, getCellFromPoint, findPlacedPlanetAt, placedPlanets, cellSize])
+
+  const onGridMouseMove = useCallback((e: React.MouseEvent) => {
+    if (draggingIdx !== null) setDragPos({ x: e.clientX, y: e.clientY })
+  }, [draggingIdx])
+
+  const onGridMouseUp = useCallback((e: React.MouseEvent) => {
+    if (draggingIdx !== null) endDrag(e.clientX, e.clientY)
+  }, [draggingIdx, endDrag])
+
+  // 터치: non-passive 리스너
+  const DRAG_THRESHOLD = 8
+  const touchStartPos = useRef({ x: 0, y: 0 })
+  const pendingDragIdx = useRef<number | null>(null)
+  const stateRef = useRef({ isPlacing, placedPlanets, draggingIdx, cellSize })
+  useEffect(() => {
+    stateRef.current = { isPlacing, placedPlanets, draggingIdx, cellSize }
+  })
+
+  useEffect(() => {
+    const el = gridRef.current
+    if (!el) return
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (!stateRef.current.isPlacing) return
+      const t = e.touches[0]
+      touchMoved.current = false
+      touchStartPos.current = { x: t.clientX, y: t.clientY }
+      const cell = getCellFromPoint(t.clientX, t.clientY)
+      pendingDragIdx.current = cell ? findPlacedPlanetAt(cell[0], cell[1]) : null
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const t = e.touches[0]
+      const dx = t.clientX - touchStartPos.current.x
+      const dy = t.clientY - touchStartPos.current.y
+      const dist = Math.sqrt(dx * dx + dy * dy)
+
+      if (!touchMoved.current && dist > DRAG_THRESHOLD && pendingDragIdx.current !== null && pendingDragIdx.current !== -1) {
+        touchMoved.current = true
+        const p = stateRef.current.placedPlanets[pendingDragIdx.current]
+        setDraggingIdx(pendingDragIdx.current)
+        const startCell = getCellFromPoint(touchStartPos.current.x, touchStartPos.current.y)
+        if (startCell && p) {
+          setDragOffset({
+            x: (startCell[1] - p.col) * stateRef.current.cellSize,
+            y: (startCell[0] - p.row) * stateRef.current.cellSize,
+          })
+        }
+      }
+
+      if (stateRef.current.draggingIdx !== null || touchMoved.current) {
+        e.preventDefault()
+        setDragPos({ x: t.clientX, y: t.clientY })
+      }
+    }
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const t = e.changedTouches[0]
+      if (stateRef.current.draggingIdx !== null) {
+        endDrag(t.clientX, t.clientY)
+      } else if (!touchMoved.current) {
+        const cell = getCellFromPoint(t.clientX, t.clientY)
+        if (cell) handleCellClick(cell[0], cell[1])
+      }
+      pendingDragIdx.current = null
+    }
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: true })
+    el.addEventListener('touchmove', handleTouchMove, { passive: false })
+    el.addEventListener('touchend', handleTouchEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart)
+      el.removeEventListener('touchmove', handleTouchMove)
+      el.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [getCellFromPoint, findPlacedPlanetAt, endDrag, handleCellClick])
+
   // 엣지 클래스
   const activeLabel = selectedHistoryIdx !== null
     ? roomState.history[selectedHistoryIdx]?.label
@@ -197,7 +324,11 @@ export default function OnlineGameBoard({
         </div>
         <div className="player-chips">
           {roomState.players.map(p => (
-            <PlayerChip key={p.id} player={p} isMe={p.id === playerId} isTurn={p.id === roomState.currentTurnPlayerId} />
+            <PlayerChip key={p.id} player={p} isMe={p.id === playerId}
+              isTurn={p.id === roomState.currentTurnPlayerId}
+              isHost={isHost} canManage={isHost && p.id !== playerId && !p.eliminated}
+              onSkip={() => onSkipTurn?.(p.id)}
+              onKick={() => onKickPlayer?.(p.id)} />
           ))}
         </div>
       </div>
@@ -226,6 +357,8 @@ export default function OnlineGameBoard({
               gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
               gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
             }}
+            onMouseDown={onGridMouseDown} onMouseMove={onGridMouseMove}
+            onMouseUp={onGridMouseUp} onMouseLeave={onGridMouseUp}
           >
             {Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, i) => {
               const row = Math.floor(i / GRID_SIZE), col = i % GRID_SIZE
@@ -244,6 +377,20 @@ export default function OnlineGameBoard({
             )}
             {placedPlanets.length > 0 && <PlanetOverlay planets={placedPlanets} visible cellSize={cellSize} />}
           </div>
+
+          {draggingIdx !== null && (() => {
+            const p = placedPlanets[draggingIdx]
+            const def = availablePieces.find(d => d.type === p.type)!
+            const o = p.orientation ?? 'horizontal'
+            const w = (o === 'horizontal' ? def.width : def.height) * cellSize
+            const h = (o === 'horizontal' ? def.height : def.width) * cellSize
+            return (
+              <img src={getPlanetSvgPath(p.type, o, p.edgeSide)} alt=""
+                style={{ position: 'fixed', left: dragPos.x - dragOffset.x, top: dragPos.y - dragOffset.y,
+                  width: w, height: h, opacity: 0.6, pointerEvents: 'none', zIndex: 100 }} />
+            )
+          })()}
+
           <RightLabels onFire={handleFire} getEdgeClass={getEdgeClass} />
         </div>
         <BottomLabels onFire={handleFire} getEdgeClass={getEdgeClass} />
@@ -281,12 +428,25 @@ export default function OnlineGameBoard({
   )
 }
 
-function PlayerChip({ player, isMe, isTurn }: { player: PlayerInfo; isMe: boolean; isTurn: boolean }) {
+function PlayerChip({ player, isMe, isTurn, canManage, onSkip, onKick }: {
+  player: PlayerInfo; isMe: boolean; isTurn: boolean
+  isHost: boolean; canManage: boolean
+  onSkip: () => void; onKick: () => void
+}) {
+  const [showMenu, setShowMenu] = useState(false)
   return (
-    <div className={`player-chip${isTurn ? ' turn' : ''}${player.eliminated ? ' eliminated' : ''}${isMe ? ' me' : ''}`}>
+    <div className={`player-chip${isTurn ? ' turn' : ''}${player.eliminated ? ' eliminated' : ''}${!player.online ? ' offline' : ''}${isMe ? ' me' : ''}`}
+      onClick={() => canManage && setShowMenu(v => !v)}>
       <span className="player-chip-name">{player.name}</span>
+      {!player.online && <span className="player-chip-offline">끊김</span>}
       {player.wrongAnswers > 0 && (
         <span className="player-chip-strikes">{'X'.repeat(player.wrongAnswers)}</span>
+      )}
+      {showMenu && canManage && (
+        <div className="player-menu">
+          {isTurn && <button onClick={(e) => { e.stopPropagation(); onSkip(); setShowMenu(false) }}>턴 넘기기</button>}
+          <button onClick={(e) => { e.stopPropagation(); onKick(); setShowMenu(false) }}>추방</button>
+        </div>
       )}
     </div>
   )

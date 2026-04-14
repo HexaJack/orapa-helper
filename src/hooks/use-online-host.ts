@@ -20,6 +20,7 @@ export function useOnlineHost(hostName: string, gameMode: GameMode, targetDiffic
       name: hostName,
       wrongAnswers: 0,
       eliminated: false,
+      online: true,
     }],
     currentTurnPlayerId: null,
     history: [],
@@ -58,13 +59,19 @@ export function useOnlineHost(hostName: string, gameMode: GameMode, targetDiffic
 
     switch (msg.type) {
       case 'join-request': {
-        if (state.phase !== 'lobby') return
-        if (state.players.some(p => p.id === msg.playerId)) return
+        const existing = state.players.find(p => p.id === msg.playerId)
+        if (existing) {
+          // 재접속: 기존 플레이어 → 현재 상태 전송
+          broadcastState(state)
+          return
+        }
+        if (state.phase !== 'lobby') return // 새 플레이어는 로비에서만
         const newPlayer: PlayerInfo = {
           id: msg.playerId,
           name: msg.playerName,
           wrongAnswers: 0,
           eliminated: false,
+          online: true,
         }
         const updated = { ...state, players: [...state.players, newPlayer] }
         setRoomState(updated)
@@ -213,7 +220,29 @@ export function useOnlineHost(hostName: string, gameMode: GameMode, targetDiffic
       handleClientMessageRef.current(payload as ClientMessage)
     })
 
-    channel.subscribe()
+    // Presence로 접속 상태 추적
+    channel.on('presence', { event: 'sync' }, () => {
+      const presenceState = channel.presenceState()
+      const onlineIds = new Set<string>()
+      for (const key in presenceState) {
+        for (const p of presenceState[key] as Record<string, unknown>[]) {
+          if (p['playerId']) onlineIds.add(p['playerId'] as string)
+        }
+      }
+      setRoomState(prev => {
+        const updated = {
+          ...prev,
+          players: prev.players.map(p => ({ ...p, online: onlineIds.has(p.id) })),
+        }
+        return updated
+      })
+    })
+
+    channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await channel.track({ playerId: hostId })
+      }
+    })
     channelRef.current = channel
 
     return () => {
@@ -256,6 +285,37 @@ export function useOnlineHost(hostName: string, gameMode: GameMode, targetDiffic
     handleClientMessage({ type: 'answer-submission', playerId: hostId, planets: answer })
   }, [hostId, handleClientMessage])
 
+  // 턴 넘기기
+  const skipTurn = useCallback((targetPlayerId: string) => {
+    const state = stateRef.current
+    if (state.currentTurnPlayerId !== targetPlayerId) return
+    const nextId = getNextTurnPlayerId(targetPlayerId, state.players)
+    const updated = { ...state, currentTurnPlayerId: nextId }
+    setRoomState(updated)
+    broadcastState(updated)
+  }, [broadcastState, getNextTurnPlayerId])
+
+  // 추방
+  const kickPlayer = useCallback((targetPlayerId: string) => {
+    const state = stateRef.current
+    const updatedPlayers = state.players.map(p =>
+      p.id === targetPlayerId ? { ...p, eliminated: true } : p
+    )
+    const updated: RoomState = {
+      ...state,
+      players: updatedPlayers,
+      currentTurnPlayerId: state.currentTurnPlayerId === targetPlayerId
+        ? getNextTurnPlayerId(targetPlayerId, updatedPlayers)
+        : state.currentTurnPlayerId,
+    }
+    setRoomState(updated)
+    channelRef.current?.send({
+      type: 'broadcast', event: 'host-message',
+      payload: { type: 'player-eliminated', playerId: targetPlayerId },
+    })
+    broadcastState(updated)
+  }, [broadcastState, getNextTurnPlayerId])
+
   return {
     roomCode,
     roomState,
@@ -264,5 +324,7 @@ export function useOnlineHost(hostName: string, gameMode: GameMode, targetDiffic
     startGame,
     hostFire,
     hostSubmitAnswer,
+    skipTurn,
+    kickPlayer,
   }
 }

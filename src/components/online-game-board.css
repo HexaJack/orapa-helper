@@ -63,6 +63,52 @@
   text-decoration: line-through;
 }
 
+.player-chip.offline {
+  border-color: #f59e0b;
+  opacity: 0.5;
+}
+
+.player-chip-offline {
+  font-size: 9px;
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+/* 호스트 관리 메뉴 */
+.player-chip {
+  position: relative;
+}
+
+.player-menu {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 4px;
+  background: var(--surface);
+  border: 1px solid #555;
+  border-radius: 6px;
+  overflow: hidden;
+  z-index: 50;
+  white-space: nowrap;
+}
+
+.player-menu button {
+  display: block;
+  width: 100%;
+  padding: 6px 14px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.player-menu button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .player-chip-name {
   max-width: 60px;
   overflow: hidden;
