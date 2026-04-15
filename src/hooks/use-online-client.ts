@@ -11,10 +11,21 @@ export function useOnlineClient(roomCode: string, playerName: string) {
   const channelRef = useRef<RealtimeChannel | null>(null)
   const playerId = getPlayerId()
 
+  const [hostTimeout, setHostTimeout] = useState(false)
+
   const showToast = useCallback((msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(null), 2000)
   }, [])
+
+  // 15초 타임아웃: 호스트 응답 없으면 경고
+  useEffect(() => {
+    if (roomState) return // 이미 연결됨
+    const timer = setTimeout(() => {
+      setHostTimeout(true)
+    }, 15000)
+    return () => clearTimeout(timer)
+  }, [roomState])
 
   // 호스트 메시지 처리
   const handleHostMessage = useCallback((msg: HostMessage) => {
@@ -151,6 +162,7 @@ export function useOnlineClient(roomCode: string, playerName: string) {
     roomState,
     connected,
     toast,
+    hostTimeout,
     myPlayer,
     isMyTurn,
     isEliminated,

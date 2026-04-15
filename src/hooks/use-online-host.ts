@@ -5,35 +5,47 @@ import { generateBoardWithDifficulty } from '../game/difficulty'
 import { fireLaser } from '../game/laser'
 import { comparePlacements } from './use-game'
 import { supabase, generateRoomCode, getPlayerId } from '../game/supabase'
+import { loadHostState, saveHostState } from '../game/session'
 import type { PlayerInfo, RoomState, RoomPhase, HistoryEntry, ClientMessage } from '../game/multiplayer-types'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 export function useOnlineHost(hostName: string, gameMode: GameMode, targetDifficulty: DifficultyLevel | 'any') {
-  const [roomCode] = useState(generateRoomCode)
+  const saved = loadHostState()
+  const [roomCode] = useState(() => saved?.roomCode ?? generateRoomCode())
   const [hostId] = useState(getPlayerId)
-  const [roomState, setRoomState] = useState<RoomState>(() => ({
-    roomCode,
-    gameMode,
-    difficulty: 0,
-    players: [{
-      id: getPlayerId(),
-      name: hostName,
-      wrongAnswers: 0,
-      eliminated: false,
-      online: true,
-    }],
-    currentTurnPlayerId: null,
-    history: [],
-    phase: 'lobby' as RoomPhase,
-    winnerId: null,
-    firedLabels: [],
-  }))
-  const [planets, setPlanets] = useState<Planet[]>([])
+  const [roomState, setRoomState] = useState<RoomState>(() => {
+    if (saved?.roomState) return saved.roomState as RoomState
+    return {
+      roomCode,
+      gameMode,
+      difficulty: 0,
+      players: [{
+        id: getPlayerId(),
+        name: hostName,
+        wrongAnswers: 0,
+        eliminated: false,
+        online: true,
+      }],
+      currentTurnPlayerId: null,
+      history: [],
+      phase: 'lobby' as RoomPhase,
+      winnerId: null,
+      firedLabels: [],
+    }
+  })
+  const [planets, setPlanets] = useState<Planet[]>(() =>
+    saved?.planets ? saved.planets as Planet[] : []
+  )
   const channelRef = useRef<RealtimeChannel | null>(null)
   const stateRef = useRef(roomState)
   const planetsRef = useRef(planets)
   useEffect(() => { stateRef.current = roomState }, [roomState])
   useEffect(() => { planetsRef.current = planets }, [planets])
+
+  // 상태 변경 시 sessionStorage에 자동 저장 (새로고침 복구용)
+  useEffect(() => {
+    saveHostState({ roomCode, roomState, planets })
+  }, [roomCode, roomState, planets])
 
   // 방 상태 브로드캐스트
   const broadcastState = useCallback((state: RoomState) => {

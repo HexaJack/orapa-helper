@@ -31,4 +31,28 @@ export function loadSession(): OnlineSession | null {
 
 export function clearSession(): void {
   sessionStorage.removeItem(SESSION_KEY)
+  sessionStorage.removeItem(HOST_STATE_KEY)
+}
+
+// 호스트 게임 상태 복구용
+const HOST_STATE_KEY = 'orapa-host-state'
+
+export interface HostSavedState {
+  roomCode: string
+  roomState: unknown
+  planets: unknown
+}
+
+export function saveHostState(state: HostSavedState): void {
+  sessionStorage.setItem(HOST_STATE_KEY, JSON.stringify(state))
+}
+
+export function loadHostState(): HostSavedState | null {
+  const raw = sessionStorage.getItem(HOST_STATE_KEY)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
 }

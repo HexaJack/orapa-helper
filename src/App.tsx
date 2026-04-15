@@ -168,7 +168,20 @@ function ClientSession({ roomCode, playerName, appMode, setAppMode, onBack }: {
   }
 
   if (!client.roomState) {
-    return <div className="app"><h1>연결 중...</h1></div>
+    return (
+      <div className="app">
+        <h1>Orapa Space</h1>
+        <div className="lobby">
+          <h2>{client.hostTimeout ? '응답 없음' : '연결 중...'}</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+            {client.hostTimeout
+              ? '호스트가 응답하지 않습니다. 방이 존재하지 않거나 호스트가 접속 중이 아닙니다.'
+              : '호스트 응답을 기다리고 있습니다'}
+          </p>
+          <button className="btn" onClick={onBack}>초기 화면으로</button>
+        </div>
+      </div>
+    )
   }
 
   return (
