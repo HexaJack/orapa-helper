@@ -10,10 +10,10 @@ export function generateRoomCode(): string {
 }
 
 export function getPlayerId(): string {
-  let id = sessionStorage.getItem('orapa-player-id')
+  let id = localStorage.getItem('orapa-player-id')
   if (!id) {
     id = crypto.randomUUID()
-    sessionStorage.setItem('orapa-player-id', id)
+    localStorage.setItem('orapa-player-id', id)
   }
   return id
 }
