@@ -228,11 +228,17 @@ export function useOnlineHost(hostName: string, gameMode: GameMode, targetDiffic
       config: { broadcast: { self: true } },
     })
 
+    // Presence로 접속 상태 추적
+    const recentJoins = new Map<string, number>()
+
     channel.on('broadcast', { event: 'client-message' }, ({ payload }) => {
-      handleClientMessageRef.current(payload as ClientMessage)
+      const msg = payload as ClientMessage
+      if (msg.type === 'join-request') {
+        recentJoins.set(msg.playerId, Date.now())
+      }
+      handleClientMessageRef.current(msg)
     })
 
-    // Presence로 접속 상태 추적
     channel.on('presence', { event: 'sync' }, () => {
       const presenceState = channel.presenceState()
       const onlineIds = new Set<string>()
@@ -241,10 +247,17 @@ export function useOnlineHost(hostName: string, gameMode: GameMode, targetDiffic
           if (p['playerId']) onlineIds.add(p['playerId'] as string)
         }
       }
+      // 호스트 자신은 항상 online
+      onlineIds.add(hostId)
+      const now = Date.now()
       setRoomState(prev => {
         const updated = {
           ...prev,
-          players: prev.players.map(p => ({ ...p, online: onlineIds.has(p.id) })),
+          players: prev.players.map(p => ({
+            ...p,
+            // 최근 5초 이내 참가한 플레이어는 강제 online
+            online: onlineIds.has(p.id) || (now - (recentJoins.get(p.id) ?? 0)) < 5000,
+          })),
         }
         return updated
       })
