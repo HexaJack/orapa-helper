@@ -73,8 +73,8 @@ export function useOnlineHost(hostName: string, gameMode: GameMode, targetDiffic
       case 'join-request': {
         const existing = state.players.find(p => p.id === msg.playerId)
         if (existing) {
-          // 재접속: 기존 플레이어 → 현재 상태 전송
-          broadcastState(state)
+          // 재접속: 딜레이 후 상태 전송 (클라이언트 리스너 등록 대기)
+          setTimeout(() => broadcastState(stateRef.current), 500)
           return
         }
         if (state.phase !== 'lobby') return // 새 플레이어는 로비에서만

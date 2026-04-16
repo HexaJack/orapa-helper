@@ -114,17 +114,31 @@ export function useOnlineClient(roomCode: string, playerName: string) {
       if (status === 'SUBSCRIBED') {
         setConnected(true)
         await channel.track({ playerId })
-        channel.send({
-          type: 'broadcast',
-          event: 'client-message',
-          payload: { type: 'join-request', playerId, playerName },
-        })
+        // 리스너 등록 확실히 완료 후 join 요청
+        setTimeout(() => {
+          channel.send({
+            type: 'broadcast',
+            event: 'client-message',
+            payload: { type: 'join-request', playerId, playerName },
+          })
+        }, 300)
       }
     })
 
     channelRef.current = channel
 
+    // 응답 없으면 5초마다 재요청
+    const retryInterval = setInterval(() => {
+      if (!channelRef.current) return
+      channel.send({
+        type: 'broadcast',
+        event: 'client-message',
+        payload: { type: 'join-request', playerId, playerName },
+      })
+    }, 5000)
+
     return () => {
+      clearInterval(retryInterval)
       channel.send({
         type: 'broadcast',
         event: 'client-message',
